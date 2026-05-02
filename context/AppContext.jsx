@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react'
 import { useLS } from '../hooks/useLocalStorage'
 import { genId, todayISO, nextOccurrenceDate } from '../utils/dates'
+import { startNotificationLoop, stopNotificationLoop } from '../utils/notifications'
 // Sample data no longer loaded by default — new users start with empty dashboard
 
 const AppContext = createContext(null)
@@ -171,7 +172,7 @@ export function AppProvider({ children }) {
     const perm = await Notification.requestPermission()
     if (perm === 'granted') {
       setNotifEnabled(true)
-      new Notification('Personal OS 🔔', { body: 'Notifications activées !', icon: NOTIF_ICON })
+      new Notification('Personal OS 🔔', { body: 'Notifications activées ! Tu seras rappelé avant tes examens et deadlines.', icon: NOTIF_ICON })
     } else {
       setNotifEnabled(false)
       alert('Permission refusée. Active les notifications dans les paramètres de ton navigateur.')
@@ -224,6 +225,25 @@ export function AppProvider({ children }) {
     }, 60000)
     return () => clearInterval(interval)
   }, [notifEnabled, notify, notifSupported])
+
+  // ── Boucle de notifications en arrière-plan ──────────────
+  useEffect(() => {
+    if (!notifEnabled || Notification.permission !== 'granted') {
+      stopNotificationLoop()
+      return
+    }
+    const getData = () => ({ tasks, examens, devoirs, courses, profile })
+    startNotificationLoop(getData)
+
+    // Envoyer les données au Service Worker pour les notifs offline
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.ready.then(reg => {
+        reg.active?.postMessage({ type: 'STORE_DATA', payload: { examens, devoirs, tasks } })
+      }).catch(() => {})
+    }
+
+    return () => stopNotificationLoop()
+  }, [notifEnabled, tasks, examens, devoirs, courses, profile])
 
   /* ── Export / Import ── */
   const exportData = () => {

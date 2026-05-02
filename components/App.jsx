@@ -23,6 +23,7 @@ import GlobalSearch from './shared/GlobalSearch'
 import InstallPrompt from './shared/InstallPrompt'
 import MissedReminders from './shared/MissedReminders'
 import BottomSheet from './shared/BottomSheet'
+import AssistantIA from './shared/AssistantIA'
 import { downloadICS, countICSItems } from '../utils/icsExport'
 import {
   LayoutDashboard, CheckSquare, Target, GraduationCap, Wallet,
@@ -32,7 +33,7 @@ import {
 
 const ICON_SIZE = 18
 
-const TABS = [
+const ALL_TABS = [
   { id: 'dashboard',   icon: <LayoutDashboard size={ICON_SIZE} />,  label: 'Dashboard'      },
   { id: 'taches',      icon: <CheckSquare size={ICON_SIZE} />,      label: 'Tâches'          },
   { id: 'projets',     icon: <Target size={ICON_SIZE} />,           label: 'Projets & Idées' },
@@ -42,22 +43,94 @@ const TABS = [
   { id: 'ajustements', icon: <RefreshCw size={ICON_SIZE} />,        label: 'Ajustements'     },
 ]
 
+const MODE_TABS = {
+  'etudiant':    ['dashboard', 'taches', 'ecole', 'finances', 'stats', 'ajustements'],
+  'entrepreneur':['dashboard', 'taches', 'projets', 'finances', 'stats', 'ajustements'],
+  'les-deux':    ['dashboard', 'taches', 'projets', 'ecole', 'finances', 'stats', 'ajustements'],
+  'custom':      ['dashboard', 'taches', 'projets', 'ecole', 'finances', 'stats', 'ajustements'], // fallback, remplacé dynamiquement
+}
+
+const MODAL_MODULES = [
+  { id: 'taches', label: '✅ Tâches' },
+  { id: 'projets', label: '🎯 Projets' },
+  { id: 'ecole', label: '📚 École' },
+  { id: 'finances', label: '💰 Finances' },
+  { id: 'stats', label: '📊 Stats' },
+  { id: 'ajustements', label: '🔄 Ajustements' },
+]
+
 function ProfileModal({ profile, onSave, onClose }) {
-  const [form, setForm] = useState({ prenom: profile?.prenom || '', nom: profile?.nom || '', role: profile?.role || 'Étudiant-entrepreneur' })
+  const [form, setForm] = useState({
+    prenom: profile?.prenom || '',
+    nom: profile?.nom || '',
+    mode: profile?.mode || 'les-deux',
+    customTabs: profile?.customTabs || ['taches', 'finances', 'stats', 'ajustements'],
+  })
+  const MODES_OPTS = [
+    { id: 'etudiant', label: '📚 Étudiant' },
+    { id: 'entrepreneur', label: '🚀 Pro' },
+    { id: 'les-deux', label: '⚡ Les deux' },
+    { id: 'custom', label: '🎛️ Custom' },
+  ]
+
+  const toggleTab = (id) => {
+    setForm(f => ({
+      ...f,
+      customTabs: f.customTabs.includes(id)
+        ? f.customTabs.filter(t => t !== id)
+        : [...f.customTabs, id]
+    }))
+  }
+
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-box" onClick={e => e.stopPropagation()}>
-        <h3 style={{ fontSize: 18, marginBottom: 16, color: '#5B8DBF' }}>👤 Toi</h3>
+      <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
+        <h3 style={{ fontSize: 18, marginBottom: 16, color: 'var(--accent-1)' }}>👤 Ton profil</h3>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <input value={form.prenom} onChange={e => setForm({ ...form, prenom: e.target.value })} placeholder="Prénom *" autoFocus />
           <input value={form.nom} onChange={e => setForm({ ...form, nom: e.target.value })} placeholder="Nom (optionnel)" />
-          <select value={form.role} onChange={e => setForm({ ...form, role: e.target.value })}>
-            <option>Étudiant-entrepreneur</option><option>Étudiant</option>
-            <option>Entrepreneur</option><option>Freelance</option><option>Autre</option>
-          </select>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 }}>Mode</div>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {MODES_OPTS.map(m => (
+                <button key={m.id} type="button" onClick={() => setForm({ ...form, mode: m.id })}
+                  style={{ flex: '1 1 calc(50% - 3px)', padding: '9px 8px', borderRadius: 10, cursor: 'pointer', fontSize: 12, fontWeight: 600, fontFamily: 'var(--font-dm-sans, DM Sans)',
+                    background: form.mode === m.id ? 'linear-gradient(135deg, var(--accent-1), var(--accent-2))' : 'var(--input-bg)',
+                    color: form.mode === m.id ? '#fff' : 'var(--muted)',
+                    border: `1px solid ${form.mode === m.id ? 'transparent' : 'var(--border)'}` }}>
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Modules custom */}
+          {form.mode === 'custom' && (
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#4ade80', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 }}>Modules actifs</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                {MODAL_MODULES.map(mod => {
+                  const active = form.customTabs.includes(mod.id)
+                  return (
+                    <button key={mod.id} type="button" onClick={() => toggleTab(mod.id)}
+                      style={{ padding: '8px 12px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 600, fontFamily: 'var(--font-dm-sans, DM Sans)', textAlign: 'left',
+                        background: active ? 'rgba(74,222,128,.1)' : 'var(--input-bg)',
+                        color: active ? '#4ade80' : 'var(--muted)',
+                        border: `1px solid ${active ? 'rgba(74,222,128,.3)' : 'var(--border)'}` }}>
+                      {mod.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
         </div>
         <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
-          <button className="btn-gold" onClick={() => onSave(form)} disabled={!form.prenom.trim()}>Enregistrer</button>
+          <button className="btn-gold"
+            onClick={() => onSave({ ...form, customTabs: ['dashboard', ...form.customTabs.filter(t => t !== 'dashboard')] })}
+            disabled={!form.prenom.trim() || (form.mode === 'custom' && form.customTabs.length === 0)}>
+            Enregistrer
+          </button>
           <button className="btn-ghost" onClick={onClose}>Annuler</button>
         </div>
       </div>
@@ -141,7 +214,14 @@ export default function App() {
     tasks, devoirs, examens, projects, subscriptions,
   } = app
   const [mobileMore, setMobileMore] = useState(false)
+  const [assistantOpen, setAssistantOpen] = useState(false)
   const [loggedOut, setLoggedOut] = useState(false)
+
+  // Onglets filtrés selon le mode du profil
+  const allowedIds = profile?.mode === 'custom' && profile?.customTabs?.length
+    ? profile.customTabs
+    : MODE_TABS[profile?.mode] || MODE_TABS['les-deux']
+  const TABS = ALL_TABS.filter(t => allowedIds.includes(t.id))
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [icsModal, setIcsModal] = useState(false)
   const [onboardingDone, setOnboardingDone] = useState(() => {
@@ -332,69 +412,154 @@ export default function App() {
         </button>
       </nav>
 
-      {/* MOBILE MORE MENU */}
+      {/* MOBILE MORE MENU — Bottom Sheet */}
       {mobileMore && (
-        <div style={{ position: 'fixed', bottom: 62, left: 0, right: 0, zIndex: 201,
-          padding: '0 10px', display: 'flex', justifyContent: 'flex-end' }}>
-          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12,
-            padding: 8, display: 'flex', flexDirection: 'column', gap: 2, minWidth: 180,
-            boxShadow: '0 -4px 20px rgba(0,0,0,.3)' }}>
-            {TABS.filter(t => ['ecole', 'ajustements'].includes(t.id)).map(t => (
-              <button key={t.id} onClick={() => { setTab(t.id); setMobileMore(false) }}
-                style={{ background: tab === t.id ? 'var(--gold-dim)' : 'none', border: 'none', cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 8,
-                  color: tab === t.id ? '#5B8DBF' : 'var(--text)', fontFamily: 'DM Sans', fontSize: 14,
-                  fontWeight: tab === t.id ? 600 : 400, width: '100%', textAlign: 'left' }}>
-                <span>{t.icon}</span>
-                {t.label}
-                {t.id === 'ajustements' && adjustments.length > 0 && (
-                  <span style={{ marginLeft: 'auto', background: '#f87171', color: '#fff', borderRadius: '50%',
-                    width: 18, height: 18, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 10, fontWeight: 700 }}>{adjustments.length}</span>
-                )}
-              </button>
-            ))}
-            <div style={{ height: 1, background: 'var(--border)', margin: '4px 0' }} />
+        <>
+          {/* Overlay */}
+          <div onClick={() => setMobileMore(false)}
+            style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,.6)', backdropFilter: 'blur(4px)', animation: 'overlayIn .2s ease both' }} />
+
+          {/* Sheet */}
+          <div style={{
+            position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 301,
+            background: 'rgba(8,14,26,.97)',
+            border: '1px solid rgba(56,189,248,.12)',
+            borderRadius: '24px 24px 0 0',
+            padding: '0 0 calc(env(safe-area-inset-bottom, 0px) + 16px)',
+            boxShadow: '0 -8px 40px rgba(0,0,0,.5), 0 0 0 1px rgba(56,189,248,.05)',
+            animation: 'slideUp .3s cubic-bezier(.32,.72,0,1) both',
+            maxHeight: '85vh',
+            overflowY: 'auto',
+          }}>
+            {/* Handle */}
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 4px' }}>
+              <div style={{ width: 36, height: 4, borderRadius: 999, background: 'rgba(255,255,255,.15)' }} />
+            </div>
+
+            {/* Profil card */}
+            <div style={{ margin: '8px 16px 16px', padding: '16px', borderRadius: 16,
+              background: 'linear-gradient(135deg, rgba(56,189,248,.08), rgba(129,140,248,.06))',
+              border: '1px solid rgba(56,189,248,.15)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                <div style={{ width: 48, height: 48, borderRadius: '50%',
+                  background: 'linear-gradient(135deg, var(--accent-1), var(--accent-2))',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 20, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
+                  {profile?.prenom?.[0] || 'M'}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>
+                    {profile?.prenom} {profile?.nom || ''}
+                  </p>
+                  <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--muted)' }}>
+                    {profile?.mode === 'etudiant' ? '📚 Étudiant'
+                      : profile?.mode === 'entrepreneur' ? '🚀 Professionnel'
+                      : profile?.mode === 'les-deux' ? '⚡ Étudiant · Pro'
+                      : '🎛️ Mode personnalisé'}
+                  </p>
+                </div>
+                <button onClick={() => { setMobileMore(false); setProfileModal(true) }}
+                  style={{ background: 'rgba(56,189,248,.1)', border: '1px solid rgba(56,189,248,.2)', borderRadius: 8,
+                    padding: '6px 12px', cursor: 'pointer', fontSize: 12, color: 'var(--accent-1)', fontWeight: 600,
+                    fontFamily: 'var(--font-dm-sans, DM Sans)' }}>
+                  Modifier
+                </button>
+              </div>
+            </div>
+
+            {/* Onglets supplémentaires */}
+            {TABS.filter(t => !['dashboard','taches','projets','finances','stats'].includes(t.id)).length > 0 && (<>
+              <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', letterSpacing: 1.2,
+                textTransform: 'uppercase', padding: '0 20px', margin: '0 0 6px' }}>Navigation</p>
+              {TABS.filter(t => !['dashboard','taches','projets','finances','stats'].includes(t.id)).map(t => (
+                <button key={t.id} onClick={() => { setTab(t.id); setMobileMore(false) }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 20px',
+                    background: tab === t.id ? 'rgba(56,189,248,.08)' : 'none',
+                    border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left',
+                    color: tab === t.id ? 'var(--accent-1)' : 'var(--text)',
+                    fontFamily: 'var(--font-dm-sans, DM Sans)', fontSize: 15, fontWeight: tab === t.id ? 600 : 400 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 10,
+                    background: tab === t.id ? 'rgba(56,189,248,.15)' : 'var(--surface-elevated)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    {t.icon}
+                  </div>
+                  <span style={{ flex: 1 }}>{t.label}</span>
+                  {t.id === 'ajustements' && adjustments.length > 0 && (
+                    <span style={{ background: '#f87171', color: '#fff', borderRadius: 999,
+                      padding: '2px 8px', fontSize: 11, fontWeight: 700 }}>{adjustments.length}</span>
+                  )}
+                </button>
+              ))}
+              <div style={{ height: 1, background: 'var(--border)', margin: '8px 16px' }} />
+            </>)}
+
+            {/* Paramètres */}
+            <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', letterSpacing: 1.2,
+              textTransform: 'uppercase', padding: '0 20px', margin: '0 0 6px' }}>Paramètres</p>
+
             <button onClick={() => { setMobileMore(false); toggleTheme() }}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center',
-                gap: 10, padding: '10px 14px', borderRadius: 8, color: 'var(--text)', fontFamily: 'DM Sans',
-                fontSize: 14, width: '100%', textAlign: 'left' }}>
-              {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-              {theme === 'dark' ? 'Thème clair' : 'Thème sombre'}
+              style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 20px',
+                background: 'none', border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left',
+                color: 'var(--text)', fontFamily: 'var(--font-dm-sans, DM Sans)', fontSize: 15 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--surface-elevated)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+              </div>
+              <div style={{ flex: 1 }}>
+                <p style={{ margin: 0, fontWeight: 500 }}>{theme === 'dark' ? 'Thème clair' : 'Thème sombre'}</p>
+                <p style={{ margin: 0, fontSize: 12, color: 'var(--muted)' }}>Actuellement : {theme === 'dark' ? 'sombre' : 'clair'}</p>
+              </div>
             </button>
+
             <button onClick={() => { setMobileMore(false); notifEnabled ? setNotifEnabled(false) : enableNotifications() }}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center',
-                gap: 10, padding: '10px 14px', borderRadius: 8, color: notifEnabled ? '#4ade80' : 'var(--text)',
-                fontFamily: 'DM Sans', fontSize: 14, width: '100%', textAlign: 'left' }}>
-              {notifEnabled ? <Bell size={18} /> : <BellOff size={18} />}
-              {notifEnabled ? 'Notifications ON' : 'Notifications'}
+              style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 20px',
+                background: 'none', border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left',
+                color: 'var(--text)', fontFamily: 'var(--font-dm-sans, DM Sans)', fontSize: 15 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 10,
+                background: notifEnabled ? 'rgba(74,222,128,.12)' : 'var(--surface-elevated)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                {notifEnabled ? <Bell size={18} style={{ color: '#4ade80' }} /> : <BellOff size={18} />}
+              </div>
+              <div style={{ flex: 1 }}>
+                <p style={{ margin: 0, fontWeight: 500 }}>Notifications</p>
+                <p style={{ margin: 0, fontSize: 12, color: notifEnabled ? '#4ade80' : 'var(--muted)' }}>
+                  {notifEnabled ? 'Activées — rappels intelligents' : 'Désactivées'}
+                </p>
+              </div>
             </button>
+
             <button onClick={() => { setMobileMore(false); setBackupModal(true) }}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center',
-                gap: 10, padding: '10px 14px', borderRadius: 8, color: 'var(--text)', fontFamily: 'DM Sans',
-                fontSize: 14, width: '100%', textAlign: 'left' }}>
-              <Save size={18} />
-              Sauvegarde
+              style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 20px',
+                background: 'none', border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left',
+                color: 'var(--text)', fontFamily: 'var(--font-dm-sans, DM Sans)', fontSize: 15 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--surface-elevated)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Save size={18} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <p style={{ margin: 0, fontWeight: 500 }}>Sauvegarde</p>
+                <p style={{ margin: 0, fontSize: 12, color: 'var(--muted)' }}>Export / restauration</p>
+              </div>
             </button>
-            {profile && (
-              <button onClick={() => { setMobileMore(false); setProfileModal(true) }}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center',
-                  gap: 10, padding: '10px 14px', borderRadius: 8, color: 'var(--text)', fontFamily: 'DM Sans',
-                  fontSize: 14, width: '100%', textAlign: 'left' }}>
-                <User size={18} />
-                {profile.prenom}
-              </button>
-            )}
-            <div style={{ height: 1, background: 'var(--border)', margin: '4px 0' }} />
+
+            <div style={{ height: 1, background: 'var(--border)', margin: '8px 16px' }} />
+
+            {/* Déconnexion */}
             <button onClick={() => { setMobileMore(false); logout() }}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center',
-                gap: 10, padding: '10px 14px', borderRadius: 8, color: '#f87171', fontFamily: 'DM Sans',
-                fontSize: 14, width: '100%', textAlign: 'left' }}>
-              <LogOut size={18} />
-              Déconnexion
+              style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 20px',
+                background: 'none', border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left',
+                fontFamily: 'var(--font-dm-sans, DM Sans)', fontSize: 15, color: '#f87171', marginBottom: 4 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(248,113,113,.1)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <LogOut size={18} style={{ color: '#f87171' }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <p style={{ margin: 0, fontWeight: 500 }}>Déconnexion</p>
+                <p style={{ margin: 0, fontSize: 12, color: 'rgba(248,113,113,.6)' }}>Effacer et recommencer</p>
+              </div>
             </button>
           </div>
-        </div>
+        </>
       )}
 
       {/* MODIFIER PROFIL */}
@@ -458,6 +623,30 @@ export default function App() {
       />
 
       <InstallPrompt />
+
+      {/* ── Bouton flottant Assistant IA ── */}
+      <button
+        onClick={() => setAssistantOpen(o => !o)}
+        title="Assistant IA"
+        style={{
+          position: 'fixed', bottom: 'calc(env(safe-area-inset-bottom, 0px) + 76px)', right: 20, zIndex: 490,
+          width: 52, height: 52, borderRadius: '50%', border: 'none', cursor: 'pointer',
+          background: assistantOpen
+            ? 'linear-gradient(135deg, var(--accent-2), var(--accent-1))'
+            : 'linear-gradient(135deg, var(--accent-1), var(--accent-2))',
+          boxShadow: '0 4px 20px rgba(56,189,248,.4)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          transition: 'transform .2s cubic-bezier(.34,1.56,.64,1), box-shadow .2s',
+          transform: assistantOpen ? 'scale(0.9) rotate(10deg)' : 'scale(1)',
+        }}
+        onMouseOver={e => { if (!assistantOpen) e.currentTarget.style.transform = 'scale(1.1)' }}
+        onMouseOut={e => { e.currentTarget.style.transform = assistantOpen ? 'scale(0.9) rotate(10deg)' : 'scale(1)' }}
+      >
+        <span style={{ fontSize: 22 }}>{assistantOpen ? '✕' : '🤖'}</span>
+      </button>
+
+      {/* ── Panel Assistant IA ── */}
+      {assistantOpen && <AssistantIA onClose={() => setAssistantOpen(false)} />}
     </div>
   )
 }

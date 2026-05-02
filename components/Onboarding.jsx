@@ -62,16 +62,67 @@ function Footer({ primary, onPrimary, disabled, secondary, onSecondary }) {
   )
 }
 
+const MODES = [
+  {
+    id: 'etudiant',
+    emoji: '📚',
+    label: 'Étudiant',
+    sub: 'Cours, examens, devoirs, budget étudiant',
+    color: '#38bdf8',
+  },
+  {
+    id: 'entrepreneur',
+    emoji: '🚀',
+    label: 'Professionnel / Entrepreneur',
+    sub: 'Projets, clients, finances, productivité',
+    color: '#818cf8',
+  },
+  {
+    id: 'les-deux',
+    emoji: '⚡',
+    label: 'Les deux',
+    sub: 'Tout — études et projets en même temps',
+    color: '#f59e0b',
+  },
+  {
+    id: 'custom',
+    emoji: '🎛️',
+    label: 'Personnalisé',
+    sub: 'Tu choisis exactement les modules que tu veux',
+    color: '#4ade80',
+  },
+]
+
+const ALL_MODULE_OPTIONS = [
+  { id: 'taches',      emoji: '✅', label: 'Tâches & habitudes' },
+  { id: 'projets',     emoji: '🎯', label: 'Projets & Idées' },
+  { id: 'ecole',       emoji: '📚', label: 'École' },
+  { id: 'finances',    emoji: '💰', label: 'Finances' },
+  { id: 'stats',       emoji: '📊', label: 'Statistiques' },
+  { id: 'ajustements', emoji: '🔄', label: 'Ajustements' },
+]
+
 export default function Onboarding({ profile, onFinish }) {
   const [step, setStep] = useState(0)
-  const [contexte, setContexte] = useState(profile?.contexte || '')
+  const [mode, setMode] = useState(profile?.mode || '')
   const [objectif, setObjectif] = useState(profile?.objectif || '')
   const [pasted, setPasted] = useState('')
+  const [customTabs, setCustomTabs] = useState(
+    profile?.customTabs || ['taches', 'finances', 'stats', 'ajustements']
+  )
+
+  const toggleCustomTab = (id) => {
+    if (id === 'dashboard') return // dashboard toujours présent
+    setCustomTabs(prev =>
+      prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id]
+    )
+  }
 
   const finish = (patch = {}) => {
     const next = {
       ...profile,
-      ...(contexte ? { contexte } : {}),
+      ...(mode ? { mode } : { mode: 'les-deux' }),
+      ...(mode === 'custom' ? { customTabs: ['dashboard', ...customTabs.filter(t => t !== 'dashboard')] } : {}),
       ...(objectif.trim() ? { objectif: objectif.trim() } : {}),
       ...patch,
     }
@@ -126,78 +177,124 @@ export default function Onboarding({ profile, onFinish }) {
     </div>
   )
 
-  // ──────────────── Screen 2 : Profil (contexte + objectif)
+  // ──────────────── Screen 2 : Choix du MODE
   if (step === 1) return (
     <div style={{ background: 'var(--bg)', minHeight: '100dvh' }}>
       <Screen>
         <Progress step={1} />
 
         <div style={{ padding: '20px 0 0' }}>
-          <h1 style={{
-            fontFamily: 'Fraunces', fontSize: 28, fontWeight: 700,
-            letterSpacing: '-0.8px', lineHeight: 1.1, margin: 0, color: 'var(--text)',
-          }}>Dis-nous-en un peu plus.</h1>
+          <h1 style={{ fontFamily: 'var(--font-fraunces, Fraunces)', fontSize: 28, fontWeight: 700, letterSpacing: '-0.8px', lineHeight: 1.1, margin: 0 }}>
+            Tu es plutôt…
+          </h1>
           <p style={{ fontSize: 14, color: 'var(--muted)', marginTop: 8, lineHeight: 1.5 }}>
-            Deux éléments — rien de plus. Tu pourras ajuster plus tard.
+            On adapte l'app à ton profil. Tu peux changer ça plus tard.
           </p>
         </div>
 
-        <div style={{ padding: '28px 0 0', display: 'flex', flexDirection: 'column', gap: 22 }}>
-          {/* Contexte — chips */}
-          <div>
-            <div style={{
-              fontSize: 11.5, fontWeight: 600, color: 'var(--muted)',
-              letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 10,
-            }}>Contexte</div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-              {CONTEXTES.map(c => {
-                const on = contexte === c
+        <div style={{ padding: '28px 0 0', display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {MODES.map(m => {
+            const on = mode === m.id
+            return (
+              <button key={m.id} type="button" onClick={() => setMode(m.id)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 16,
+                  padding: '18px 20px', borderRadius: 16, cursor: 'pointer', textAlign: 'left',
+                  background: on ? `linear-gradient(135deg, ${m.color}18, ${m.color}08)` : 'var(--card)',
+                  border: `2px solid ${on ? m.color : 'var(--border)'}`,
+                  transition: 'all .2s', width: '100%',
+                  boxShadow: on ? `0 0 20px ${m.color}20` : 'none',
+                }}>
+                <div style={{ width: 52, height: 52, borderRadius: 14, background: on ? `${m.color}20` : 'var(--surface-elevated)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, flexShrink: 0, border: `1px solid ${on ? m.color + '40' : 'var(--border)'}` }}>
+                  {m.emoji}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontFamily: 'var(--font-fraunces, Fraunces)', fontSize: 18, fontWeight: 700, color: on ? m.color : 'var(--text)', marginBottom: 3 }}>
+                    {m.label}
+                  </div>
+                  <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.4 }}>{m.sub}</div>
+                </div>
+                <div style={{ width: 22, height: 22, borderRadius: '50%', border: `2px solid ${on ? m.color : 'var(--border)'}`, background: on ? m.color : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all .2s' }}>
+                  {on && <span style={{ color: '#fff', fontSize: 12, fontWeight: 700 }}>✓</span>}
+                </div>
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Sélecteur modules custom */}
+        {mode === 'custom' && (
+          <div style={{ padding: '16px 0 0', animation: 'pageIn .3s ease both' }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#4ade80', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 12 }}>
+              Choisis tes modules
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              {/* Dashboard toujours activé */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 12, background: 'rgba(56,189,248,.08)', border: '1px solid rgba(56,189,248,.2)', opacity: 0.6 }}>
+                <span style={{ fontSize: 16 }}>🏠</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--accent-1)' }}>Dashboard</span>
+                <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--muted)' }}>toujours</span>
+              </div>
+              {ALL_MODULE_OPTIONS.map(mod => {
+                const active = customTabs.includes(mod.id)
                 return (
-                  <button key={c} type="button"
-                    onClick={() => setContexte(on ? '' : c)}
-                    style={{
-                      padding: '9px 14px', borderRadius: 999, cursor: 'pointer',
-                      background: on ? 'var(--gold)' : 'var(--card)',
-                      color: on ? '#fff' : 'var(--text)',
-                      border: `1px solid ${on ? 'var(--gold)' : 'var(--border)'}`,
-                      fontSize: 13.5, fontWeight: 600,
-                      fontFamily: "'DM Sans', sans-serif",
-                    }}>{c}</button>
+                  <button key={mod.id} type="button" onClick={() => toggleCustomTab(mod.id)}
+                    style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 12, cursor: 'pointer', textAlign: 'left',
+                      background: active ? 'rgba(74,222,128,.08)' : 'var(--card)',
+                      border: `1px solid ${active ? 'rgba(74,222,128,.3)' : 'var(--border)'}`,
+                      transition: 'all .15s', width: '100%' }}>
+                    <span style={{ fontSize: 16 }}>{mod.emoji}</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: active ? '#4ade80' : 'var(--muted)', flex: 1 }}>{mod.label}</span>
+                    <div style={{ width: 18, height: 18, borderRadius: '50%', border: `2px solid ${active ? '#4ade80' : 'var(--border)'}`, background: active ? '#4ade80' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      {active && <span style={{ color: '#0B1220', fontSize: 10, fontWeight: 800 }}>✓</span>}
+                    </div>
+                  </button>
                 )
               })}
             </div>
+            {customTabs.length === 0 && (
+              <p style={{ fontSize: 12, color: '#f87171', marginTop: 8 }}>Sélectionne au moins un module</p>
+            )}
           </div>
+        )}
 
-          {/* Objectif — textarea */}
-          <div>
-            <div style={{
-              fontSize: 11.5, fontWeight: 600, color: 'var(--muted)',
-              letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 10,
-            }}>Objectif principal</div>
-            <textarea
-              value={objectif}
-              onChange={e => setObjectif(e.target.value)}
-              placeholder="Une chose qui compte pour toi en ce moment"
-              rows={3}
-              style={{ fontSize: 14.5, lineHeight: 1.5, resize: 'vertical' }}
-            />
-            <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 6, lineHeight: 1.4 }}>
-              Ex : réussir mon semestre, lancer mon projet, mieux m'organiser.
-            </div>
+        {/* Objectif */}
+        <div style={{ padding: '24px 0 0' }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 10 }}>
+            Objectif principal (optionnel)
           </div>
+          <textarea value={objectif} onChange={e => setObjectif(e.target.value)}
+            placeholder="Une chose qui compte pour toi en ce moment" rows={2}
+            style={{ fontSize: 14, lineHeight: 1.5, resize: 'none' }} />
         </div>
 
         <Footer
           primary="Continuer"
           onPrimary={() => setStep(2)}
-          secondary="Passer cette étape"
-          onSecondary={() => setStep(2)}
+          disabled={!mode || (mode === 'custom' && customTabs.length === 0)}
+          secondary="Passer"
+          onSecondary={() => { setMode('les-deux'); setStep(2) }}
         />
       </Screen>
     </div>
   )
 
-  // ──────────────── Screen 3 : Import rapide ou démarrer à vide
+  // ──────────────── Screen 3 : Import rapide ou démarrer à vide (adapté au mode)
+  const isStudent = mode === 'etudiant' || mode === 'les-deux'
+  const isPro = mode === 'entrepreneur' || mode === 'custom'
+
+  const screen3Config = isPro && !isStudent ? {
+    title: 'Démarrer vite ?',
+    sub: 'Colle ta liste de tâches, tes projets en cours ou ton planning de la semaine.',
+    placeholder: 'Projet site e-commerce — deadline 15 mai\nAppeler client Ndiaye\nPréparer devis marketing\n...',
+    importLabel: 'Import tâches / projets',
+  } : {
+    title: 'Démarrer vite ?',
+    sub: "Colle ce que tu as sous la main — emploi du temps, matières, cours. Tu pourras l'importer dans École plus tard.",
+    placeholder: 'Lundi · 9h Maths · 11h Anglais\nMardi · 10h Programmation · 14h Design\n…',
+    importLabel: 'Import emploi du temps',
+  }
+
   return (
     <div style={{ background: 'var(--bg)', minHeight: '100dvh' }}>
       <Screen>
@@ -205,12 +302,11 @@ export default function Onboarding({ profile, onFinish }) {
 
         <div style={{ padding: '20px 0 0' }}>
           <h1 style={{
-            fontFamily: 'Fraunces', fontSize: 28, fontWeight: 700,
+            fontFamily: 'var(--font-fraunces, Fraunces)', fontSize: 28, fontWeight: 700,
             letterSpacing: '-0.8px', lineHeight: 1.1, margin: 0, color: 'var(--text)',
-          }}>Démarrer vite ?</h1>
+          }}>{screen3Config.title}</h1>
           <p style={{ fontSize: 14, color: 'var(--muted)', marginTop: 8, lineHeight: 1.5 }}>
-            Colle ce que tu as sous la main — emploi du temps, matières, cours.
-            Tu pourras l'importer dans École plus tard.
+            {screen3Config.sub}
           </p>
         </div>
 
@@ -224,12 +320,12 @@ export default function Onboarding({ profile, onFinish }) {
               fontSize: 11.5, fontWeight: 600, color: 'var(--gold)',
               letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 10,
             }}>
-              ✦ Import rapide
+              ✦ {screen3Config.importLabel}
             </div>
             <textarea
               value={pasted}
               onChange={e => setPasted(e.target.value)}
-              placeholder={'Lundi · 9h Maths · 11h Anglais\nMardi · 10h Programmation · 14h Design\n…'}
+              placeholder={screen3Config.placeholder}
               rows={5}
               style={{
                 fontSize: 13.5, lineHeight: 1.55, resize: 'vertical',

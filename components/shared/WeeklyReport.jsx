@@ -40,6 +40,9 @@ function StatBox({ label, value, sub, color = '#5B8DBF' }) {
 export default function WeeklyReport({ tasks, expenses, subscriptions, projects, devoirs, examens, profile, streakData, onClose }) {
   const reportRef = useRef(null)
   const [exporting, setExporting] = useState(false)
+  const [aiSummary, setAiSummary] = useState('')
+  const [loadingAI, setLoadingAI] = useState(false)
+  const [aiError, setAiError] = useState('')
 
   const today = todayISO()
   const dayName = todayDay()
@@ -137,6 +140,35 @@ export default function WeeklyReport({ tasks, expenses, subscriptions, projects,
       console.error('Export error:', e)
     } finally {
       setExporting(false)
+    }
+  }
+
+  const generateAI = async () => {
+    setLoadingAI(true)
+    setAiError('')
+    const prompt = [
+      `Semaine du ${weekLabel} — Rapport de ${profile?.prenom || 'l\'utilisateur'}`,
+      `Tâches : ${totalDone} terminées sur ${totalCreated} créées (${completionRate}%)`,
+      `Streak : ${streakData?.count || 0} jour(s) consécutifs`,
+      `Dépenses : ${expenses.filter(e => e.date >= weekStart).reduce((s,e)=>s+e.amount,0).toLocaleString('fr-FR')} FCFA cette semaine`,
+      `Devoirs rendus : ${devoirsRendus}/${devoirs.length}`,
+      nextExam ? `Prochain examen : ${nextExam.matiere} dans ${daysUntil(nextExam.date)} jour(s)` : 'Aucun examen proche',
+      activeProjects.length ? `Projets actifs : ${activeProjects.slice(0,3).map(p=>p.name).join(', ')}` : '',
+    ].filter(Boolean).join('\n')
+
+    try {
+      const res = await fetch('/api/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ task: 'weekly_report', messages: [{ role: 'user', content: prompt }] }),
+      })
+      const data = await res.json()
+      if (data.error) throw new Error(data.error)
+      setAiSummary(data.content || '')
+    } catch (e) {
+      setAiError('Erreur IA — ' + e.message)
+    } finally {
+      setLoadingAI(false)
     }
   }
 
@@ -286,6 +318,19 @@ export default function WeeklyReport({ tasks, expenses, subscriptions, projects,
               </div>
             )}
 
+            {/* ── Résumé IA ── */}
+            {aiSummary && (
+              <div style={{ background: 'linear-gradient(135deg, rgba(56,189,248,.08), rgba(129,140,248,.06))', border: '1px solid rgba(56,189,248,.2)', borderRadius: 12, padding: '14px 16px', marginBottom: 14, position: 'relative', overflow: 'hidden' }}>
+                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: 'linear-gradient(90deg, #38bdf8, #818cf8)' }} />
+                <p style={{ fontSize: 10, fontWeight: 700, color: '#38bdf8', letterSpacing: 1.2, textTransform: 'uppercase', margin: '0 0 8px', display: 'flex', alignItems: 'center', gap: 5 }}>
+                  🤖 Résumé IA
+                </p>
+                <p style={{ fontSize: 12.5, color: '#cbd5e1', lineHeight: 1.65, margin: 0, whiteSpace: 'pre-wrap' }}>
+                  {aiSummary}
+                </p>
+              </div>
+            )}
+
             {/* Footer watermark */}
             <div style={{ textAlign: 'center', paddingTop: 8 }}>
               <p style={{ fontSize: 10, color: '#374151', margin: 0 }}>
@@ -296,14 +341,29 @@ export default function WeeklyReport({ tasks, expenses, subscriptions, projects,
         </div>
 
         {/* Action buttons (outside exportable area) */}
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 16 }}>
-          <button className="btn-gold" onClick={exportPNG} disabled={exporting}
-            style={{ fontSize: 14, padding: '10px 24px', opacity: exporting ? 0.6 : 1 }}>
-            {exporting ? '⏳ Export...' : '📤 Telecharger PNG'}
-          </button>
-          <button className="btn-ghost" onClick={onClose} style={{ fontSize: 14, padding: '10px 20px' }}>
-            Fermer
-          </button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 16 }}>
+          {/* Bouton IA */}
+          {!aiSummary && (
+            <button
+              onClick={generateAI}
+              disabled={loadingAI}
+              style={{ width: '100%', padding: '12px', borderRadius: 12, border: '1px solid rgba(56,189,248,.3)', background: 'linear-gradient(135deg, rgba(56,189,248,.1), rgba(129,140,248,.08))', color: loadingAI ? 'var(--muted)' : 'var(--accent-1)', cursor: loadingAI ? 'not-allowed' : 'pointer', fontSize: 14, fontWeight: 600, fontFamily: 'var(--font-dm-sans, DM Sans)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'all .2s' }}>
+              {loadingAI
+                ? <><span className="spinner" />Analyse en cours…</>
+                : <>🤖 Générer le résumé IA</>}
+            </button>
+          )}
+          {aiError && <p style={{ fontSize: 12, color: '#f87171', textAlign: 'center', margin: 0 }}>{aiError}</p>}
+
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+            <button className="btn-gold" onClick={exportPNG} disabled={exporting}
+              style={{ fontSize: 14, padding: '10px 24px', opacity: exporting ? 0.6 : 1 }}>
+              {exporting ? '⏳ Export...' : '📤 Télécharger PNG'}
+            </button>
+            <button className="btn-ghost" onClick={onClose} style={{ fontSize: 14, padding: '10px 20px' }}>
+              Fermer
+            </button>
+          </div>
         </div>
       </div>
     </div>

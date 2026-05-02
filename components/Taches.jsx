@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useApp } from '../context/AppContext'
 import { genId, todayISO, todayDay, fmtDate, daysUntil, nextOccurrenceDate } from '../utils/dates'
 import { PRIORITY_ORDER, PRIORITY_COLOR } from '../utils/constants'
@@ -204,17 +204,61 @@ export default function Taches() {
     if (newExamens.length > 0 && setExamens) setExamens(p => [...p, ...newExamens])
   }
 
+  // ── Ajout rapide ──
+  const [quickName, setQuickName] = useState('')
+  const quickRef = useRef(null)
+
+  const quickAdd = () => {
+    const name = quickName.trim()
+    if (!name) return
+    setTasks(prev => [...prev, {
+      id: genId(), name, details: '', project: '',
+      priority: 'Important', duration: 0,
+      deadline: '', flexible: false, status: 'À faire',
+      recurring: false, recurrence: 'daily', recurrenceDays: [], recurrenceTime: '',
+      createdAt: todayISO(), lastCompletedAt: null, subtasks: [],
+    }])
+    setQuickName('')
+    quickRef.current?.focus()
+  }
+
   return (
     <div>
-      <PageHeader title="Tâches" sub="Tout ce que tu veux faire, au bon moment" action={
+      <PageHeader title="Tâches" action={
         <div style={{ display: 'flex', gap: 8 }}>
           <button className="btn-ghost" onClick={() => setShowImport(true)}
-              style={{ fontSize: 13, padding: '8px 14px', border: '1px solid rgba(91,141,191,.3)' }}>
-              Import IA
-            </button>
-          <button className="btn-gold" onClick={openAdd}>+ Nouvelle tâche</button>
+            style={{ fontSize: 12, padding: '7px 12px', border: '1px solid rgba(56,189,248,.25)' }}>
+            Import IA
+          </button>
+          <button className="btn-gold" onClick={openAdd} style={{ fontSize: 12, padding: '7px 14px' }}>
+            + Détails
+          </button>
         </div>
       } />
+
+      {/* ── Barre d'ajout rapide ── */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center' }}>
+        <div style={{ flex: 1, position: 'relative' }}>
+          <input
+            ref={quickRef}
+            value={quickName}
+            onChange={e => setQuickName(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') quickAdd() }}
+            placeholder="Ajouter une tâche... (Entrée pour valider)"
+            style={{ paddingRight: 44, borderColor: quickName ? 'var(--accent-1)' : undefined }}
+          />
+          {quickName && (
+            <button onClick={quickAdd}
+              style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)',
+                width: 30, height: 30, borderRadius: 8, border: 'none', cursor: 'pointer',
+                background: 'linear-gradient(135deg, var(--accent-1), var(--accent-2))',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff',
+                fontSize: 18, fontWeight: 700 }}>
+              ↵
+            </button>
+          )}
+        </div>
+      </div>
 
       {/* ── Formulaire ── */}
       {showForm && (
@@ -591,7 +635,8 @@ function TaskRow({ task, cycleStatus, del, toAdjust, onComplete, onEdit, isEditi
         flexWrap: 'wrap'
       }}>
 
-      <button className="status-btn" onClick={() => cycleStatus(task.id)}
+      {/* Sur desktop : bouton statut visible. Sur mobile : remplacé par swipe droit */}
+      <button className="status-btn mobile-hidden" onClick={() => cycleStatus(task.id)}
         style={{ background: statusBg, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
         title="Changer statut">
         {statusIcon}
@@ -600,7 +645,7 @@ function TaskRow({ task, cycleStatus, del, toAdjust, onComplete, onEdit, isEditi
       <div style={{ flex: 1, minWidth: 0 }}>
         <p style={{ fontSize: 14, margin: 0, textDecoration: task.status === 'Terminé' ? 'line-through' : 'none',
           color: task.status === 'Terminé' ? 'var(--muted)' : 'var(--text)',
-          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          wordBreak: 'break-word', overflowWrap: 'break-word' }}>
           {task.recurring && <Repeat size={12} style={{ marginRight: 5, display: 'inline', verticalAlign: 'middle' }} />}
           {task.name}
         </p>
@@ -646,11 +691,11 @@ function TaskRow({ task, cycleStatus, del, toAdjust, onComplete, onEdit, isEditi
             {isRunning ? <Clock size={14} /> : <Play size={14} />}
           </button>
         )}
-        <span style={{ background: statusBg, color: statusColor, padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600 }}>
+        <span className="task-status-badge" style={{ background: statusBg, color: statusColor, padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' }}>
           {task.status}
         </span>
         {canSnooze && (
-          <div style={{ position: 'relative' }}>
+          <div className="task-action-secondary" style={{ position: 'relative' }}>
             <button className="btn-icon" title="Repousser" onClick={onOpenSnooze}
               style={{ color: snoozeOpen ? '#5B8DBF' : undefined }}><Moon size={15} /></button>
             {snoozeOpen && (
@@ -677,9 +722,10 @@ function TaskRow({ task, cycleStatus, del, toAdjust, onComplete, onEdit, isEditi
         <button className="btn-icon" title="Modifier" onClick={() => onEdit(task)}
           style={{ color: isEditing ? '#5B8DBF' : undefined }}><Pencil size={15} /></button>
         {!task.recurring && (
-          <button className="btn-icon" title="Déplacer en ajustements" onClick={() => toAdjust(task)}><RefreshCw size={15} /></button>
+          <button className="btn-icon task-action-secondary" title="Déplacer en ajustements" onClick={() => toAdjust(task)}><RefreshCw size={15} /></button>
         )}
-        <button className="btn-icon" title="Supprimer" onClick={() => del(task.id)}><X size={15} /></button>
+        {/* Sur desktop : bouton supprimer visible. Sur mobile : remplacé par swipe gauche */}
+        <button className="btn-icon mobile-hidden" title="Supprimer" onClick={() => del(task.id)}><X size={15} /></button>
       </div>
 
       {expanded && subs.length > 0 && (

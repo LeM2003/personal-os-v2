@@ -446,6 +446,7 @@ button:focus-visible { outline: 2px solid var(--accent-1); outline-offset: 2px; 
 .modal-box { background: rgba(13, 21, 38, 0.95); border: 1px solid rgba(56,189,248,.15); border-radius: 20px; padding: 28px; width: 100%; max-width: 440px; animation: modalIn var(--dur-slow) var(--ease-spring) both; box-shadow: 0 24px 64px rgba(0,0,0,.5), 0 0 0 1px rgba(56,189,248,.05), 0 0 60px rgba(56,189,248,.04); backdrop-filter: blur(24px); }
 @keyframes overlayIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes modalIn { from { opacity: 0; transform: translateY(20px) scale(0.94); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
 
 /* ── Bottom nav ── */
 .bottom-nav { display: none; position: fixed; bottom: 0; left: 0; right: 0; background: rgba(6,13,26,.92); border-top: 1px solid var(--border); z-index: 200; padding: 4px 0 calc(env(safe-area-inset-bottom, 0px) + 4px); backdrop-filter: blur(20px); scrollbar-width: none; }
@@ -509,7 +510,21 @@ button:focus-visible { outline: 2px solid var(--accent-1); outline-offset: 2px; 
   .stat-value { font-size: 20px; }
   .btn-gold, .btn-ghost { padding: 10px 16px; font-size: 13px; }
   .subtab { padding: 8px 12px; font-size: 12px; }
-  .task-card { padding: 11px 12px; gap: 10px; }
+  .task-card { padding: 11px 10px; gap: 8px; }
+
+  /* KPI grid : 2×2 sur mobile au lieu de 4×1 */
+  .grid-kpi { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
+  /* Éléments remplacés par swipe sur mobile */
+  .mobile-hidden { display: none !important; }
+  /* Masquer les actions secondaires sur mobile */
+  .task-action-secondary { display: none !important; }
+  /* Réduire le badge statut sur mobile */
+  .task-status-badge { padding: 2px 7px !important; font-size: 10px !important; }
+  /* Cacher sous-titres de page sur mobile */
+  .page-sub { display: none; }
+  /* Boutons de header plus compacts */
+  .page-header .btn-gold { padding: 8px 12px !important; font-size: 12px !important; }
+  .page-header .btn-ghost { padding: 8px 12px !important; font-size: 12px !important; }
 }
 @media (max-width: 380px) {
   .main-content { padding: 10px 8px 90px; }

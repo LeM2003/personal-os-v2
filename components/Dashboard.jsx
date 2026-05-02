@@ -235,60 +235,54 @@ export default function Dashboard() {
       )}
 
       {/* ── Bannière Météo / Streak / Score ── */}
-      <div className="grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 20 }}>
         {/* Météo */}
-        <div className="card" style={{ padding: '16px 18px', display: 'flex', alignItems: 'center', gap: 14 }}>
-          <div style={{ width: 44, height: 44, borderRadius: 12, background: `${meteo.color}18`, border: `1px solid ${meteo.color}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <span style={{ color: meteo.color, lineHeight: 1 }}>{meteo.icon}</span>
+        <div className="card" style={{ padding: 'clamp(10px,2vw,16px)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, textAlign: 'center' }}>
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: `${meteo.color}18`, border: `1px solid ${meteo.color}30`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ color: meteo.color, lineHeight: 1, fontSize: 18 }}>{meteo.icon}</span>
           </div>
-          <div style={{ minWidth: 0 }}>
-            <p style={{ fontSize: 10, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 1, margin: 0 }}>Journée</p>
-            <p style={{ fontSize: 17, fontWeight: 700, color: meteo.color, margin: '2px 0 1px' }}>{meteo.label}</p>
-            <p style={{ fontSize: 10, color: 'var(--muted)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{meteo.sub}</p>
+          <div>
+            <p style={{ fontSize: 'clamp(11px,2.5vw,14px)', fontWeight: 700, color: meteo.color, margin: 0, lineHeight: 1.2 }}>{meteo.label}</p>
+            <p style={{ fontSize: 9, color: 'var(--muted)', margin: '2px 0 0', textTransform: 'uppercase', letterSpacing: .5 }}>Journée</p>
           </div>
         </div>
         {/* Streak */}
-        <div className="card" style={{ padding: '16px 18px', display: 'flex', alignItems: 'center', gap: 14 }}>
-          <div style={{ width: 44, height: 44, borderRadius: 12, background: streak >= 3 ? 'rgba(249,115,22,.15)' : 'rgba(100,116,139,.1)', border: `1px solid ${streak >= 3 ? 'rgba(249,115,22,.3)' : 'rgba(100,116,139,.2)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <Flame size={22} style={{ color: streak >= 7 ? '#f97316' : streak >= 3 ? '#fb923c' : 'var(--muted)' }} />
+        <div className="card" style={{ padding: 'clamp(10px,2vw,16px)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, textAlign: 'center' }}>
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: streak >= 3 ? 'rgba(249,115,22,.15)' : 'rgba(100,116,139,.1)', border: `1px solid ${streak >= 3 ? 'rgba(249,115,22,.3)' : 'rgba(100,116,139,.2)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Flame size={18} style={{ color: streak >= 7 ? '#f97316' : streak >= 3 ? '#fb923c' : 'var(--muted)' }} />
           </div>
           <div>
-            <p style={{ fontSize: 10, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 1, margin: 0 }}>Streak</p>
-            <p style={{ fontSize: 17, fontWeight: 700, margin: '2px 0 1px', color: streak >= 7 ? '#4ade80' : streak >= 3 ? '#fb923c' : 'var(--text)' }}>
-              {streak} jour{streak !== 1 ? 's' : ''}
+            <p style={{ fontSize: 'clamp(11px,2.5vw,14px)', fontWeight: 700, margin: 0, lineHeight: 1.2, color: streak >= 7 ? '#4ade80' : streak >= 3 ? '#fb923c' : 'var(--text)' }}>
+              {streak}j
             </p>
-            <p style={{ fontSize: 10, color: 'var(--muted)', margin: 0 }}>
-              {streak === 0 ? 'On commence' : streak >= 7 ? 'En feu 🔥' : 'Garde le rythme'}
-            </p>
+            <p style={{ fontSize: 9, color: 'var(--muted)', margin: '2px 0 0', textTransform: 'uppercase', letterSpacing: .5 }}>Streak</p>
           </div>
         </div>
-        {/* Score — mini orb SVG */}
-        <div className="card" style={{ padding: '16px 18px', display: 'flex', alignItems: 'center', gap: 14 }}>
-          <div style={{ flexShrink: 0, position: 'relative', width: 44, height: 44 }}>
-            <svg width="44" height="44" viewBox="0 0 44 44">
-              <circle cx="22" cy="22" r="18" fill="none" stroke="rgba(56,189,248,.12)" strokeWidth="3" />
-              <circle cx="22" cy="22" r="18" fill="none"
-                stroke="url(#scoreGrad)" strokeWidth="3"
+        {/* Score SVG */}
+        <div className="card" style={{ padding: 'clamp(10px,2vw,16px)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, textAlign: 'center' }}>
+          <div style={{ position: 'relative', width: 36, height: 36 }}>
+            <svg width="36" height="36" viewBox="0 0 36 36">
+              <circle cx="18" cy="18" r="14" fill="none" stroke="rgba(56,189,248,.12)" strokeWidth="3" />
+              <circle cx="18" cy="18" r="14" fill="none" stroke="url(#sg2)" strokeWidth="3"
                 strokeLinecap="round"
-                strokeDasharray={`${(weekScore / 100) * 113} 113`}
-                transform="rotate(-90 22 22)"
-                style={{ transition: 'stroke-dasharray .8s cubic-bezier(.4,0,.2,1)' }}
+                strokeDasharray={`${(weekScore / 100) * 88} 88`}
+                transform="rotate(-90 18 18)"
+                style={{ transition: 'stroke-dasharray .8s' }}
               />
               <defs>
-                <linearGradient id="scoreGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <linearGradient id="sg2" x1="0%" y1="0%" x2="100%" y2="0%">
                   <stop offset="0%" stopColor="var(--accent-1)" />
                   <stop offset="100%" stopColor="var(--accent-2)" />
                 </linearGradient>
               </defs>
             </svg>
-            <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: 'var(--accent-1)' }}>{weekScore}%</span>
+            <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, color: 'var(--accent-1)' }}>{weekScore}%</span>
           </div>
           <div>
-            <p style={{ fontSize: 10, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 1, margin: 0 }}>Score 7j</p>
-            <p style={{ fontSize: 17, fontWeight: 700, margin: '2px 0 1px', background: 'linear-gradient(135deg, var(--accent-1), var(--accent-2))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-              {weekScore >= 70 ? 'Excellent' : weekScore >= 40 ? 'Bien' : 'À relancer'}
+            <p style={{ fontSize: 'clamp(11px,2.5vw,14px)', fontWeight: 700, margin: 0, lineHeight: 1.2, background: 'linear-gradient(135deg,var(--accent-1),var(--accent-2))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+              {weekScore >= 70 ? 'Top' : weekScore >= 40 ? 'Bien' : 'Allez'}
             </p>
-            <p style={{ fontSize: 10, color: 'var(--muted)', margin: 0 }}>{weekScore >= 70 ? 'Continue comme ça' : weekScore >= 40 ? 'On peut mieux' : 'Reprends le rythme'}</p>
+            <p style={{ fontSize: 9, color: 'var(--muted)', margin: '2px 0 0', textTransform: 'uppercase', letterSpacing: .5 }}>Score 7j</p>
           </div>
         </div>
       </div>
@@ -308,7 +302,7 @@ export default function Dashboard() {
       </div>
 
       {/* ── KPI Cards ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }} className="grid-3">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 24 }} className="grid-kpi">
         <StatCard icon={<ClipboardList size={24} color="#5B8DBF" />} value={`${createdToday.length}`} label="Tâches du jour" color="#5B8DBF" />
         <StatCard icon={<CheckCircle2 size={24} color="#4ade80" />} value={`${completedToday}`} label="Terminées" color="#4ade80" />
         <StatCard icon={<Receipt size={24} color="#60a5fa" />} value={`${todayExpTotal.toLocaleString('fr-FR')} F`} label="Dépensé aujourd'hui" color="#60a5fa" />
