@@ -7,6 +7,7 @@ import { todayISO, todayLabel, todayDay, greeting, fmtDate, daysUntil } from '..
 import { PRIORITY_ORDER, PRIORITY_COLOR, CAT_COLORS } from '../utils/constants'
 import { computeNextRenewal } from '../utils/subscriptions'
 import StatCard from './shared/StatCard'
+import MorningBriefing from './shared/MorningBriefing'
 import EmptyState from './shared/EmptyState'
 import SegmentedControl from './shared/SegmentedControl'
 import AbstractMark from './shared/AbstractMark'
@@ -25,7 +26,7 @@ function isoMinusDays(n) {
 export default function Dashboard() {
   const { tasks, objectif, setObjectif, expenses, subscriptions,
     devoirs, examens, adjustments, courses, setTab, profile, streakData, setStreakData,
-    budgets, setBudgets } = useApp()
+    budgets, setBudgets, projects } = useApp()
   const [view, setView] = useLS('pos_dashboard_view', 'today')
 
   const now     = todayISO()
@@ -162,6 +163,17 @@ export default function Dashboard() {
           </h1>
         </div>
       </header>
+
+      {/* ── Briefing matin IA ── */}
+      <MorningBriefing
+        tasks={tasks}
+        examens={examens}
+        devoirs={devoirs}
+        expenses={expenses}
+        projects={projects || []}
+        profile={profile}
+        streakData={streakData}
+      />
 
       {/* ── Switch de vue ── */}
       <div style={{ marginBottom: 20, display: 'flex', justifyContent: 'center' }}>

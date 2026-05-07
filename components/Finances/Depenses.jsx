@@ -7,14 +7,51 @@ import { CAT_COLORS } from '../../utils/constants'
 import EmptyState from '../shared/EmptyState'
 import SegmentedControl from '../shared/SegmentedControl'
 import AbstractMark from '../shared/AbstractMark'
+import BottomSheet from '../shared/BottomSheet'
 
-const CATS = ['Nourriture', 'Transport', 'Business', 'École', 'Loisirs', 'Autre']
+const CATS = ['Alimentation', 'Transport', 'Télécom', 'Santé', 'Business', 'École', 'Loisirs', 'Autre']
+
+function DonutChart({ data, total, size = 140 }) {
+  if (total === 0 || !data.some(d => d.value > 0)) return null
+  const cx = size / 2, cy = size / 2
+  const r = size * 0.40, ir = size * 0.26
+  const polarXY = (angle, radius) => ({
+    x: cx + radius * Math.cos((angle - 90) * Math.PI / 180),
+    y: cy + radius * Math.sin((angle - 90) * Math.PI / 180),
+  })
+  let start = 0
+  const segments = data.filter(d => d.value > 0).map(d => {
+    const angle = (d.value / total) * 360
+    const s = { ...d, start, angle }
+    start += angle
+    return s
+  })
+  return (
+    <svg width={size} height={size} style={{ flexShrink: 0 }}>
+      {segments.map((seg, i) => {
+        const s = polarXY(seg.start, r), e = polarXY(seg.start + seg.angle, r)
+        const is = polarXY(seg.start + seg.angle, ir), ie = polarXY(seg.start, ir)
+        const large = seg.angle > 180 ? 1 : 0
+        return (
+          <path key={i} d={`M${s.x},${s.y} A${r},${r} 0 ${large} 1 ${e.x},${e.y} L${is.x},${is.y} A${ir},${ir} 0 ${large} 0 ${ie.x},${ie.y} Z`}
+            fill={seg.color} opacity={0.9} />
+        )
+      })}
+      <text x={cx} y={cy - 6} textAnchor="middle" style={{ fontSize: 13, fontWeight: 800, fill: 'var(--text)', fontFamily: 'var(--font-fraunces, Fraunces)' }}>
+        {total >= 1000 ? `${Math.round(total/1000)}K` : total.toLocaleString('fr-FR')}
+      </text>
+      <text x={cx} y={cy + 10} textAnchor="middle" style={{ fontSize: 9, fill: 'var(--muted)' }}>FCFA</text>
+    </svg>
+  )
+}
 
 export default function Depenses() {
-  const { expenses, setExpenses, budgets, setBudgets } = useApp()
+  const { expenses, setExpenses, budgets, setBudgets, financeFormOpen, setFinanceFormOpen } = useApp()
+  const showForm = financeFormOpen
+  const setShowForm = setFinanceFormOpen
   const [editBudget, setEditBudget] = useState(false)
   const [budgetDraft, setBudgetDraft] = useState({})
-  const blank = { amount: '', category: 'Nourriture', date: todayISO(), type: 'Variable', note: '' }
+  const blank = { amount: '', category: 'Alimentation', date: todayISO(), type: 'Variable', note: '' }
   const [form, setForm] = useState(blank)
   const [editingId, setEditingId] = useState(null)
   const [fPeriod, setFPeriod] = useState('Mois')
@@ -26,9 +63,9 @@ export default function Depenses() {
   const openEdit = exp => {
     setEditingId(exp.id)
     setForm({ amount: String(exp.amount), category: exp.category, date: exp.date, type: exp.type, note: exp.note || '' })
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    setShowForm(true)
   }
-  const closeForm = () => { setEditingId(null); setForm({ ...blank, date: todayISO() }) }
+  const closeForm = () => { setEditingId(null); setForm({ ...blank, date: todayISO() }); setShowForm(false) }
 
   const add = () => {
     if (!form.amount) return
@@ -188,109 +225,122 @@ export default function Depenses() {
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 24 }} className="grid-2">
-        {/* Bar chart avec budgets */}
-        <div className="card" style={{ padding: 20 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <p style={{ fontFamily: 'Fraunces', fontWeight: 700, fontSize: 13, textTransform: 'uppercase', letterSpacing: .8 }}>
-              Dépenses ce mois
-            </p>
-            {!editBudget
-              ? <button className="btn-ghost" style={{ fontSize: 11, padding: '4px 10px' }} onClick={openBudgetEdit}>
-                  ✏️ {hasBudgets ? 'Modifier budgets' : 'Définir des budgets'}
-                </button>
-              : <div style={{ display: 'flex', gap: 6 }}>
-                  <button className="btn-gold" style={{ fontSize: 11, padding: '4px 10px' }} onClick={saveBudgets}>Enregistrer</button>
-                  <button className="btn-ghost" style={{ fontSize: 11, padding: '4px 10px' }} onClick={() => setEditBudget(false)}>Annuler</button>
-                </div>
-            }
-          </div>
+      {/* ── Catégories + Donut ── */}
+      <div className="card" style={{ padding: 20, marginBottom: 24 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
+          <p style={{ fontFamily: 'var(--font-fraunces, Fraunces)', fontWeight: 700, fontSize: 13, textTransform: 'uppercase', letterSpacing: .8, margin: 0 }}>
+            Répartition ce mois
+          </p>
+          {!editBudget
+            ? <button className="btn-ghost" style={{ fontSize: 11, padding: '4px 10px' }} onClick={openBudgetEdit}>
+                ✏️ {hasBudgets ? 'Budgets' : 'Définir budgets'}
+              </button>
+            : <div style={{ display: 'flex', gap: 6 }}>
+                <button className="btn-gold" style={{ fontSize: 11, padding: '4px 10px' }} onClick={saveBudgets}>Enregistrer</button>
+                <button className="btn-ghost" style={{ fontSize: 11, padding: '4px 10px' }} onClick={() => setEditBudget(false)}>Annuler</button>
+              </div>
+          }
+        </div>
 
-          {editBudget ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 4 }}>
-                Fixe un budget mensuel par catégorie (0 = pas de limite)
-              </p>
+        {editBudget ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 4 }}>Budget mensuel par catégorie (0 = pas de limite)</p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }} className="grid-2">
               {CATS.map(cat => (
-                <div key={cat} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontSize: 13, color: CAT_COLORS[cat], fontWeight: 500, width: 90, flexShrink: 0 }}>{cat}</span>
-                  <input type="number" min={0} step={500}
-                    value={budgetDraft[cat] ?? ''}
+                <div key={cat} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ width: 10, height: 10, borderRadius: '50%', background: CAT_COLORS[cat], flexShrink: 0 }} />
+                  <span style={{ fontSize: 12, color: 'var(--muted)', width: 80, flexShrink: 0 }}>{cat}</span>
+                  <input type="number" min={0} step={500} value={budgetDraft[cat] ?? ''}
                     onChange={e => setBudgetDraft({ ...budgetDraft, [cat]: e.target.value })}
-                    placeholder="FCFA" style={{ flex: 1 }} />
+                    placeholder="FCFA" style={{ flex: 1, fontSize: 12 }} />
                 </div>
               ))}
             </div>
-          ) : CATS.filter(c => catTotals[c] > 0 || budgets[c] > 0).length === 0 ? (
-            <EmptyState mark="stack" tone="muted" title="Rien à ce mois. Page blanche." subtitle="Fixe tes budgets pour garder l'œil dessus." />
-          ) : (
-            CATS.map(cat => {
-              const spent = catTotals[cat]
-              const budget = budgets[cat] || 0
-              if (spent === 0 && budget === 0) return null
-              const pct = budget > 0 ? Math.round((spent / budget) * 100) : null
-              const barColor = pct !== null ? budgetBarColor(pct) : CAT_COLORS[cat]
-              const barWidth = budget > 0
-                ? `${Math.min((spent / budget) * 100, 100)}%`
-                : `${(spent / maxVal) * 100}%`
-              return (
-                <div key={cat} style={{ marginBottom: 14 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5, gap: 8 }}>
-                    <span style={{ fontSize: 13, color: CAT_COLORS[cat], fontWeight: 500 }}>{cat}</span>
-                    <span style={{ fontSize: 12, color: 'var(--muted)', textAlign: 'right' }}>
-                      {spent.toLocaleString('fr-FR')}
-                      {budget > 0 && ` / ${budget.toLocaleString('fr-FR')} FCFA`}
-                      {pct !== null && <span style={{ marginLeft: 6, fontWeight: 700, color: barColor }}>{pct}%</span>}
-                    </span>
+          </div>
+        ) : CATS.filter(c => catTotals[c] > 0 || budgets[c] > 0).length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--muted)', fontSize: 13 }}>
+            <p style={{ fontSize: 28, marginBottom: 8 }}>💰</p>
+            <p>Aucune dépense ce mois. Commence à enregistrer.</p>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+            {/* Donut */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+              <DonutChart
+                size={130}
+                total={monthTotal}
+                data={CATS.filter(c => catTotals[c] > 0).map(c => ({ value: catTotals[c], color: CAT_COLORS[c], label: c }))}
+              />
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center', maxWidth: 150 }}>
+                {CATS.filter(c => catTotals[c] > 0).map(c => (
+                  <div key={c} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: CAT_COLORS[c] }} />
+                    <span style={{ fontSize: 10, color: 'var(--muted)' }}>{c}</span>
                   </div>
-                  <div style={{ background: 'var(--bar-bg)', borderRadius: 999, height: 10, overflow: 'hidden' }}>
-                    <div style={{
-                      background: barColor, height: 10, borderRadius: 999,
-                      width: barWidth, transition: 'width .5s ease',
-                      boxShadow: `0 0 8px ${barColor}60`,
-                    }} />
-                  </div>
-                  {pct !== null && pct >= 100 && (
-                    <p style={{ fontSize: 11, color: '#f87171', marginTop: 3 }}>⚠️ Budget dépassé</p>
-                  )}
-                  {pct !== null && pct >= 80 && pct < 100 && (
-                    <p style={{ fontSize: 11, color: '#f97316', marginTop: 3 }}>Attention — plus que {(budget - spent).toLocaleString('fr-FR')} FCFA</p>
-                  )}
-                </div>
-              )
-            })
-          )}
-        </div>
-
-        {/* Add / Edit form */}
-        <div className="card" style={{ padding: 20, border: editingId ? '1px solid rgba(91,141,191,.35)' : undefined }}>
-          <p style={{ fontFamily: 'Fraunces', fontWeight: 700, fontSize: 13, textTransform: 'uppercase', letterSpacing: .8, marginBottom: 16 }}>
-            {editingId ? '✏️ Modifier la dépense' : 'Ajouter une dépense'}
-          </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <input type="number" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })}
-              placeholder="Montant en FCFA *" min={0} />
-            <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}>
-              {CATS.map(c => <option key={c}>{c}</option>)}
-            </select>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-              <input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} />
-              <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}>
-                <option value="Variable">Variable</option>
-                <option value="Fixe">Fixe</option>
-              </select>
+                ))}
+              </div>
             </div>
-            <input value={form.note} onChange={e => setForm({ ...form, note: e.target.value })} placeholder="Note (optionnel)" />
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button className="btn-gold" onClick={add} style={{ flex: 1 }}>
-                {editingId ? 'Enregistrer' : 'Ajouter la dépense'}
-              </button>
-              {editingId && <button className="btn-ghost" onClick={closeForm}>Annuler</button>}
+
+            {/* Barres */}
+            <div style={{ flex: 1, minWidth: 180 }}>
+              {CATS.map(cat => {
+                const spent = catTotals[cat]
+                const budget = budgets[cat] || 0
+                if (spent === 0 && budget === 0) return null
+                const pct = budget > 0 ? Math.round((spent / budget) * 100) : null
+                const barColor = pct !== null ? budgetBarColor(pct) : CAT_COLORS[cat]
+                const barWidth = budget > 0 ? `${Math.min((spent / budget) * 100, 100)}%` : `${(spent / maxVal) * 100}%`
+                return (
+                  <div key={cat} style={{ marginBottom: 12 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, gap: 8 }}>
+                      <span style={{ fontSize: 12, color: CAT_COLORS[cat], fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5 }}>
+                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: CAT_COLORS[cat] }} />
+                        {cat}
+                      </span>
+                      <span style={{ fontSize: 11, color: 'var(--muted)' }}>
+                        {spent.toLocaleString('fr-FR')}{budget > 0 && ` / ${budget.toLocaleString('fr-FR')}`}
+                        {pct !== null && <span style={{ marginLeft: 5, fontWeight: 700, color: barColor }}>{pct}%</span>}
+                      </span>
+                    </div>
+                    <div className="progress-track">
+                      <div className="progress-fill" style={{ width: barWidth, background: barColor, boxShadow: `0 0 8px ${barColor}40` }} />
+                    </div>
+                    {pct !== null && pct >= 100 && <p style={{ fontSize: 10, color: '#f87171', marginTop: 2 }}>⚠️ Budget dépassé</p>}
+                    {pct !== null && pct >= 80 && pct < 100 && <p style={{ fontSize: 10, color: '#f97316', marginTop: 2 }}>Attention — {(budget-spent).toLocaleString('fr-FR')} FCFA restants</p>}
+                  </div>
+                )
+              })}
             </div>
           </div>
-        </div>
+        )}
       </div>
 
+      {/* ── BottomSheet Formulaire ── */}
+      <BottomSheet open={showForm} onClose={closeForm} title={editingId ? '✏️ Modifier' : '+ Ajouter une dépense'}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <input type="number" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })}
+            placeholder="Montant en FCFA *" min={0} autoFocus />
+          <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}>
+            {CATS.map(c => <option key={c}>{c}</option>)}
+          </select>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} />
+            <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}>
+              <option value="Variable">Variable</option>
+              <option value="Fixe">Fixe</option>
+            </select>
+          </div>
+          <input value={form.note} onChange={e => setForm({ ...form, note: e.target.value })} placeholder="Note (optionnel)" />
+          <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+            <button className="btn-gold" onClick={add} style={{ flex: 1 }}>
+              {editingId ? 'Enregistrer' : 'Ajouter'}
+            </button>
+            <button className="btn-ghost" onClick={closeForm}>Annuler</button>
+          </div>
+        </div>
+      </BottomSheet>}
+
+      {/* History */}
       {/* History */}
       <div className="card" style={{ padding: 20 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 10 }}>

@@ -56,6 +56,173 @@ function ScoreRing({ score, size = 90 }) {
   )
 }
 
+
+/* ══════════════════════════════════════════
+   HABIT TRACKER — Grille 90 jours (GitHub-style)
+   ══════════════════════════════════════════ */
+const MONTHS_FR = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc']
+const DAYS_FR   = ['D','L','M','M','J','V','S']
+
+function HabitGrid({ tasks }) {
+  const [hovered, setHovered] = useState(null)
+
+  // Construire les 91 derniers jours (13 semaines)
+  const today = new Date()
+  today.setHours(0,0,0,0)
+
+  // Aligner sur le début de semaine (lundi)
+  const startDow = today.getDay() === 0 ? 6 : today.getDay() - 1
+  const gridStart = new Date(today)
+  gridStart.setDate(today.getDate() - (90 + startDow))
+
+  const days = []
+  for (let i = 0; i <= 90 + startDow; i++) {
+    const d = new Date(gridStart)
+    d.setDate(gridStart.getDate() + i)
+    const iso = d.toISOString().split('T')[0]
+    // Compter : tâches créées et terminées ce jour + récurrentes complétées
+    const done = tasks.filter(t =>
+      (t.createdAt === iso && t.status === 'Terminé') ||
+      (t.recurring && t.lastCompletedAt === iso)
+    ).length
+    days.push({ iso, date: d, done })
+  }
+
+  // Grouper par semaine (colonnes)
+  const weeks = []
+  for (let i = 0; i < days.length; i += 7) {
+    weeks.push(days.slice(i, i + 7))
+  }
+
+  // Stats
+  const activeDays = days.filter(d => d.done > 0).length
+  const streak = (() => {
+    let s = 0
+    const todayISO = today.toISOString().split('T')[0]
+    for (let i = days.length - 1; i >= 0; i--) {
+      if (days[i].iso > todayISO) continue
+      if (days[i].done > 0) s++
+      else break
+    }
+    return s
+  })()
+
+  const cellColor = (count) => {
+    if (count === 0) return 'rgba(56,189,248,.07)'
+    if (count === 1) return 'rgba(56,189,248,.3)'
+    if (count <= 3) return 'rgba(56,189,248,.6)'
+    return '#38bdf8'
+  }
+
+  // Labels mois
+  const monthLabels = []
+  weeks.forEach((week, wi) => {
+    const first = week.find(d => d)
+    if (!first) return
+    const month = first.date.getMonth()
+    if (wi === 0 || month !== weeks[wi-1]?.[0]?.date?.getMonth()) {
+      monthLabels.push({ wi, label: MONTHS_FR[month] })
+    }
+  })
+
+  return (
+    <div className="card card-gold" style={{ padding: '18px 20px', marginBottom: 20 }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
+        <div>
+          <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>Activité 90 jours</p>
+          <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--muted)' }}>Chaque case = un jour avec des tâches terminées</p>
+        </div>
+        <div style={{ display: 'flex', gap: 16 }}>
+          <div style={{ textAlign: 'center' }}>
+            <p style={{ margin: 0, fontSize: 20, fontWeight: 700, background: 'linear-gradient(135deg,var(--accent-1),var(--accent-2))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{activeDays}</p>
+            <p style={{ margin: 0, fontSize: 10, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: .7 }}>jours actifs</p>
+          </div>
+          <div style={{ textAlign: 'center' }}>
+            <p style={{ margin: 0, fontSize: 20, fontWeight: 700, color: streak >= 7 ? '#4ade80' : streak >= 3 ? '#fb923c' : 'var(--text)' }}>{streak}</p>
+            <p style={{ margin: 0, fontSize: 10, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: .7 }}>streak</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Grille — scroll horizontal sur mobile */}
+      <div style={{ overflowX: 'auto', overflowY: 'hidden', paddingBottom: 4 }}>
+        <div style={{ display: 'inline-flex', flexDirection: 'column', gap: 3, minWidth: 'max-content' }}>
+          {/* Labels mois */}
+          <div style={{ display: 'flex', gap: 3, paddingLeft: 20, marginBottom: 2 }}>
+            {weeks.map((_, wi) => {
+              const ml = monthLabels.find(m => m.wi === wi)
+              return (
+                <div key={wi} style={{ width: 12, fontSize: 9, color: 'var(--muted)', letterSpacing: .3, overflow: 'visible', whiteSpace: 'nowrap' }}>
+                  {ml ? ml.label : ''}
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Grille jours */}
+          <div style={{ display: 'flex', gap: 3 }}>
+            {/* Labels jours */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginRight: 4 }}>
+              {[0,1,2,3,4,5,6].map(d => (
+                <div key={d} style={{ width: 12, height: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <span style={{ fontSize: 8, color: [1,3,5].includes(d) ? 'var(--muted)' : 'transparent', lineHeight: 1 }}>
+                    {DAYS_FR[d]}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {/* Colonnes semaines */}
+            {weeks.map((week, wi) => (
+              <div key={wi} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                {week.map((day, di) => {
+                  const isToday = day.iso === today.toISOString().split('T')[0]
+                  const isFuture = day.date > today
+                  return (
+                    <div
+                      key={di}
+                      onMouseEnter={() => setHovered({ iso: day.iso, done: day.done })}
+                      onMouseLeave={() => setHovered(null)}
+                      style={{
+                        width: 12, height: 12, borderRadius: 3,
+                        background: isFuture ? 'transparent' : cellColor(day.done),
+                        border: isToday ? '1.5px solid var(--accent-1)' : isFuture ? 'none' : '1px solid rgba(255,255,255,.04)',
+                        cursor: day.done > 0 ? 'pointer' : 'default',
+                        transition: 'transform .1s',
+                        transform: hovered?.iso === day.iso ? 'scale(1.3)' : 'scale(1)',
+                        flexShrink: 0,
+                      }}
+                    />
+                  )
+                })}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Tooltip */}
+      {hovered && (
+        <div style={{ marginTop: 8, padding: '5px 10px', background: 'var(--surface-elevated)', borderRadius: 8, display: 'inline-block' }}>
+          <span style={{ fontSize: 12, color: 'var(--text)' }}>
+            {hovered.iso} — {hovered.done > 0 ? `${hovered.done} tâche${hovered.done > 1 ? 's' : ''} terminée${hovered.done > 1 ? 's' : ''}` : 'Aucune activité'}
+          </span>
+        </div>
+      )}
+
+      {/* Légende */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 10 }}>
+        <span style={{ fontSize: 10, color: 'var(--muted)' }}>Moins</span>
+        {[0,1,2,3,4].map(n => (
+          <div key={n} style={{ width: 10, height: 10, borderRadius: 2, background: cellColor(n), border: '1px solid rgba(255,255,255,.04)' }} />
+        ))}
+        <span style={{ fontSize: 10, color: 'var(--muted)' }}>Plus</span>
+      </div>
+    </div>
+  )
+}
+
 export default function Stats() {
   const { tasks, expenses, subscriptions, projects, devoirs, examens, adjustments, profile, streakData } = useApp()
   const [showReport, setShowReport] = useState(false)
@@ -214,6 +381,9 @@ export default function Stats() {
             📤 Rapport hebdo
           </button>
         } />
+
+      {/* ── Habit Tracker 90 jours ── */}
+      <HabitGrid tasks={tasks} />
 
       {/* ── Hero cette semaine : grand chiffre + narration ── */}
       <div className="card" style={{

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { DM_Sans, Fraunces } from 'next/font/google'
 import SwRegister from '@/components/shared/SwRegister'
+import UpdateBanner from '@/components/shared/UpdateBanner'
 import './globals.css'
 
 const dmSans = DM_Sans({
@@ -33,6 +34,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="fr" data-theme="dark">
       <body className={`${dmSans.variable} ${fraunces.variable}`}>
         <SwRegister />
+        <UpdateBanner />
         {children}
       </body>
     </html>

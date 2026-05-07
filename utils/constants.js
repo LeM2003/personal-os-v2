@@ -3,8 +3,9 @@ export const PRIORITY_COLOR = { Critique: '#f87171', Important: '#5B8DBF', Optio
 export const PRIORITY_EMOJI = { Critique: '🔴', Important: '🟡', Optionnel: '⚪' }
 
 export const CAT_COLORS = {
-  Nourriture: '#f59e0b', Transport: '#3b82f6', Business: '#5B8DBF',
-  École: '#8b5cf6', Loisirs: '#ec4899', Autre: '#6b7280',
+  Alimentation: '#f59e0b', Transport: '#3b82f6', Télécom: '#06b6d4',
+  Santé: '#10b981', Business: '#5B8DBF', École: '#8b5cf6',
+  Loisirs: '#ec4899', Autre: '#6b7280',
 }
 
 export const COURSE_PALETTE = [

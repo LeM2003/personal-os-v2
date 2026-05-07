@@ -35,6 +35,7 @@ export function AppProvider({ children }) {
 
   /* ── UI state (non persiste) ── */
   const [searchOpen,    setSearchOpen]    = useState(false)
+  const [financeFormOpen, setFinanceFormOpen] = useState(false)
   const [apiModal,      setApiModal]      = useState(false)
   const [profileModal,  setProfileModal]  = useState(false)
   const [backupModal,   setBackupModal]   = useState(false)
@@ -323,6 +324,7 @@ export function AppProvider({ children }) {
     // Theme
     theme, toggleTheme,
     // UI modals
+    financeFormOpen, setFinanceFormOpen,
     searchOpen, setSearchOpen,
     apiModal, setApiModal,
     profileModal, setProfileModal,

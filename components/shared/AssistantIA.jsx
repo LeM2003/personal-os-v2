@@ -111,7 +111,7 @@ function Message({ msg, onConfirmAction }) {
         <div style={{
           padding: '10px 14px',
           borderRadius: isUser ? '16px 4px 16px 16px' : '4px 16px 16px 16px',
-          background: isUser ? 'linear-gradient(135deg, var(--accent-1), var(--accent-2))' : 'rgba(255,255,255,.05)',
+          background: isUser ? 'linear-gradient(135deg, var(--accent-1), var(--accent-2))' : 'var(--surface-elevated)',
           border: isUser ? 'none' : '1px solid var(--border)',
           color: isUser ? '#fff' : 'var(--text)',
           fontSize: 14, lineHeight: 1.55, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
@@ -260,7 +260,7 @@ export default function AssistantIA({ onClose }) {
     <div style={{
       position: 'fixed', bottom: 'calc(env(safe-area-inset-bottom, 0px) + 136px)', right: 20, zIndex: 500,
       width: 'min(380px, calc(100vw - 32px))',
-      background: 'rgba(8, 14, 26, 0.96)',
+      background: 'var(--modal-bg)',
       border: '1px solid rgba(56,189,248,.2)',
       borderRadius: 20,
       boxShadow: '0 24px 64px rgba(0,0,0,.5), 0 0 40px rgba(56,189,248,.06)',

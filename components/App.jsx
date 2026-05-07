@@ -1,6 +1,7 @@
 "use client"
 
 import { lazy, Suspense, useState } from 'react'
+import { useDraggable } from '../hooks/useDraggable'
 import { useApp } from '../context/AppContext'
 
 const LandingPage = lazy(() => import('./LandingPage'))
@@ -215,6 +216,8 @@ export default function App() {
   } = app
   const [mobileMore, setMobileMore] = useState(false)
   const [assistantOpen, setAssistantOpen] = useState(false)
+  const fab = useDraggable({ right: 20, bottom: 76 })
+  const { financeFormOpen, setFinanceFormOpen } = app
   const [loggedOut, setLoggedOut] = useState(false)
 
   // Onglets filtrés selon le mode du profil
@@ -422,11 +425,11 @@ export default function App() {
           {/* Sheet */}
           <div style={{
             position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 301,
-            background: 'rgba(8,14,26,.97)',
-            border: '1px solid rgba(56,189,248,.12)',
+            background: 'var(--modal-bg)',
+            border: '1px solid var(--border)',
             borderRadius: '24px 24px 0 0',
             padding: '0 0 calc(env(safe-area-inset-bottom, 0px) + 16px)',
-            boxShadow: '0 -8px 40px rgba(0,0,0,.5), 0 0 0 1px rgba(56,189,248,.05)',
+            boxShadow: '0 -8px 40px rgba(0,0,0,.3), 0 0 0 1px rgba(56,189,248,.05)',
             animation: 'slideUp .3s cubic-bezier(.32,.72,0,1) both',
             maxHeight: '85vh',
             overflowY: 'auto',
@@ -624,23 +627,49 @@ export default function App() {
 
       <InstallPrompt />
 
-      {/* ── Bouton flottant Assistant IA ── */}
+      {/* ── FAB Finances — "+" dépense ── */}
+      {tab === 'finances' && !financeFormOpen && (
+        <button
+          onClick={() => setFinanceFormOpen(true)}
+          title="Ajouter une dépense"
+          style={{
+            position: 'fixed', bottom: 148, right: 20, zIndex: 488,
+            width: 46, height: 46, borderRadius: '50%', border: 'none', cursor: 'pointer',
+            background: 'linear-gradient(135deg, #4ade80, #22c55e)',
+            boxShadow: '0 4px 16px rgba(74,222,128,.4)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 24, fontWeight: 700, color: '#fff',
+            transition: 'transform .2s cubic-bezier(.34,1.56,.64,1)',
+          }}
+          onMouseOver={e => { e.currentTarget.style.transform = 'scale(1.12)' }}
+          onMouseOut={e => { e.currentTarget.style.transform = '' }}>
+          +
+        </button>
+      )}
+
+      {/* ── Bouton flottant Assistant IA (draggable) ── */}
       <button
-        onClick={() => setAssistantOpen(o => !o)}
-        title="Assistant IA"
+        ref={fab.ref}
+        {...fab.handlers}
+        onClick={(e) => {
+          // N'ouvre/ferme que si ce n'était pas un drag
+          if (!fab.dragging) setAssistantOpen(o => !o)
+        }}
+        title="Assistant IA — glisse pour déplacer"
         style={{
-          position: 'fixed', bottom: 'calc(env(safe-area-inset-bottom, 0px) + 76px)', right: 20, zIndex: 490,
-          width: 52, height: 52, borderRadius: '50%', border: 'none', cursor: 'pointer',
+          ...fab.style,
+          zIndex: 490,
+          width: 52, height: 52, borderRadius: '50%', border: 'none',
           background: assistantOpen
             ? 'linear-gradient(135deg, var(--accent-2), var(--accent-1))'
             : 'linear-gradient(135deg, var(--accent-1), var(--accent-2))',
-          boxShadow: '0 4px 20px rgba(56,189,248,.4)',
+          boxShadow: fab.dragging
+            ? '0 8px 32px rgba(56,189,248,.6)'
+            : '0 4px 20px rgba(56,189,248,.4)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          transition: 'transform .2s cubic-bezier(.34,1.56,.64,1), box-shadow .2s',
-          transform: assistantOpen ? 'scale(0.9) rotate(10deg)' : 'scale(1)',
+          transition: fab.dragging ? 'none' : 'transform .2s cubic-bezier(.34,1.56,.64,1), box-shadow .2s',
+          transform: fab.dragging ? 'scale(1.15)' : assistantOpen ? 'scale(0.9) rotate(10deg)' : 'scale(1)',
         }}
-        onMouseOver={e => { if (!assistantOpen) e.currentTarget.style.transform = 'scale(1.1)' }}
-        onMouseOut={e => { e.currentTarget.style.transform = assistantOpen ? 'scale(0.9) rotate(10deg)' : 'scale(1)' }}
       >
         <span style={{ fontSize: 22 }}>{assistantOpen ? '✕' : '🤖'}</span>
       </button>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useApp } from '../context/AppContext'
 import { genId, todayISO, todayDay, fmtDate, daysUntil, nextOccurrenceDate } from '../utils/dates'
 import { PRIORITY_ORDER, PRIORITY_COLOR } from '../utils/constants'
@@ -22,7 +22,7 @@ const JOURS_SHORT = ['Lun',   'Mar',   'Mer',      'Jeu',   'Ven',      'Sam',  
 const blank = {
   name: '', details: '', project: '', priority: 'Important',
   durationH: 0, durationM: 0,
-  deadline: '', flexible: false,
+  deadline: '', taskTime: '', flexible: false,
   recurring: false, recurrence: 'daily', recurrenceDays: [], recurrenceTime: '',
   subtasks: [],
 }
@@ -37,6 +37,13 @@ const formatDur = (mins) => {
 
 export default function Taches() {
   const { tasks, setTasks, adjustments, setAdjustments, pomo, startPomo, devoirs, setDevoirs, examens, setExamens, projects } = useApp()
+  const [isMobile, setIsMobile] = useState(false)
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth <= 640)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
   const [showForm,  setShowForm]  = useState(false)
   const [showImport, setShowImport] = useState(false)
   const [form,      setForm]      = useState(blank)
@@ -77,6 +84,7 @@ export default function Taches() {
       durationM: (task.duration || 0) % 60,
       deadline: task.deadline || '', flexible: !!task.flexible,
       recurring: !!task.recurring, recurrence: task.recurrence || 'daily',
+      taskTime: task.taskTime || '',
       recurrenceDays: task.recurrenceDays || [], recurrenceTime: task.recurrenceTime || '',
       subtasks: task.subtasks || [],
     })
@@ -214,7 +222,7 @@ export default function Taches() {
     setTasks(prev => [...prev, {
       id: genId(), name, details: '', project: '',
       priority: 'Important', duration: 0,
-      deadline: '', flexible: false, status: 'À faire',
+      deadline: todayISO(), flexible: false, status: 'À faire',
       recurring: false, recurrence: 'daily', recurrenceDays: [], recurrenceTime: '',
       createdAt: todayISO(), lastCompletedAt: null, subtasks: [],
     }])
@@ -340,8 +348,14 @@ export default function Taches() {
               </div>
             </div>
 
-            <input type="date" value={form.deadline}
-              onChange={e => setForm({ ...form, deadline: e.target.value })} />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <input type="date" value={form.deadline}
+                onChange={e => setForm({ ...form, deadline: e.target.value })} />
+              <input type="time" value={form.taskTime}
+                onChange={e => setForm({ ...form, taskTime: e.target.value })}
+                placeholder="Heure (optionnel)"
+                title="Heure de la tâche — une notif sonnera à cette heure si les notifications sont activées" />
+            </div>
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--muted)', fontSize: 14, cursor: 'pointer',
               background: 'var(--surface-deep)', border: '1px solid var(--input-border)', borderRadius: 8, padding: '9px 12px' }}>
               <input type="checkbox" checked={form.flexible}
@@ -538,7 +552,8 @@ export default function Taches() {
                       onToggleSubtask={(sid) => toggleSubtask(t.id, sid)}
                       snoozeOpen={snoozeForId === t.id}
                       onOpenSnooze={() => setSnoozeForId(id => id === t.id ? null : t.id)}
-                      onSnooze={(days) => { snoozeTask(t.id, days); setSnoozeForId(null) }} />
+                      onSnooze={(days) => { snoozeTask(t.id, days); setSnoozeForId(null) }}
+                      isMobile={isMobile} />
                   ))}
                 </div>
               </div>
@@ -567,7 +582,8 @@ export default function Taches() {
                             cycleStatus={cycleStatus} del={del} toAdjust={toAdjust}
                             onEdit={openEdit} isEditing={editingId === t.id}
                             onPomo={startPomo}
-                            isRunning={pomo?.task?.id === t.id} />
+                            isRunning={pomo?.task?.id === t.id} 
+                      isMobile={isMobile}/>
                         ))}
                       </div>
                     </div>
@@ -600,7 +616,7 @@ function recurringLabel(task) {
 
 function TaskRow({ task, cycleStatus, del, toAdjust, onComplete, onEdit, isEditing, onPomo, isRunning,
   expanded, onToggleExpand, onToggleSubtask,
-  snoozeOpen, onOpenSnooze, onSnooze }) {
+  snoozeOpen, onOpenSnooze, onSnooze, isMobile = false }) {
   const due         = daysUntil(task.deadline)
   const overdue     = due < 0
   const urgent      = due >= 0 && due <= 2
@@ -636,11 +652,13 @@ function TaskRow({ task, cycleStatus, del, toAdjust, onComplete, onEdit, isEditi
       }}>
 
       {/* Sur desktop : bouton statut visible. Sur mobile : remplacé par swipe droit */}
-      <button className="status-btn mobile-hidden" onClick={() => cycleStatus(task.id)}
-        style={{ background: statusBg, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
-        title="Changer statut">
-        {statusIcon}
-      </button>
+      {!isMobile && (
+        <button className="status-btn" onClick={() => cycleStatus(task.id)}
+          style={{ background: statusBg, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+          title="Changer statut">
+          {statusIcon}
+        </button>
+      )}
 
       <div style={{ flex: 1, minWidth: 0 }}>
         <p style={{ fontSize: 14, margin: 0, textDecoration: task.status === 'Terminé' ? 'line-through' : 'none',
@@ -658,6 +676,7 @@ function TaskRow({ task, cycleStatus, del, toAdjust, onComplete, onEdit, isEditi
         <div style={{ display: 'flex', gap: 10, marginTop: 3, flexWrap: 'wrap', alignItems: 'center' }}>
           {task.project        && <span style={{ fontSize: 11, color: 'var(--muted)', display: 'inline-flex', alignItems: 'center', gap: 4 }}><Folder size={11} /> {task.project}</span>}
           {durLabel            && <span style={{ fontSize: 11, color: 'var(--muted)', display: 'inline-flex', alignItems: 'center', gap: 4 }}><Clock size={11} /> {durLabel}</span>}
+          {task.taskTime && !task.recurring && <span style={{ fontSize: 11, color: 'var(--accent-1)', display: 'inline-flex', alignItems: 'center', gap: 4 }}><Clock size={11} /> {task.taskTime}</span>}
           {task.recurrenceTime && <span style={{ fontSize: 11, color: '#5B8DBF', display: 'inline-flex', alignItems: 'center', gap: 4 }}><Clock size={11} /> {task.recurrenceTime}</span>}
           {task.recurring      && <span style={{ fontSize: 11, color: 'rgba(91,141,191,.8)' }}>{recurringLabel(task)}</span>}
           {task.deadline && !task.recurring && (
@@ -725,7 +744,9 @@ function TaskRow({ task, cycleStatus, del, toAdjust, onComplete, onEdit, isEditi
           <button className="btn-icon task-action-secondary" title="Déplacer en ajustements" onClick={() => toAdjust(task)}><RefreshCw size={15} /></button>
         )}
         {/* Sur desktop : bouton supprimer visible. Sur mobile : remplacé par swipe gauche */}
-        <button className="btn-icon mobile-hidden" title="Supprimer" onClick={() => del(task.id)}><X size={15} /></button>
+        {!isMobile && (
+          <button className="btn-icon" title="Supprimer" onClick={() => del(task.id)}><X size={15} /></button>
+        )}
       </div>
 
       {expanded && subs.length > 0 && (

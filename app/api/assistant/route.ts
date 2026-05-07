@@ -35,9 +35,26 @@ export async function POST(req: NextRequest) {
     .filter((e: any) => e.date >= new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0])
     .reduce((s: number, e: any) => s + (e.amount || 0), 0)
 
-  const systemPrompt = `Tu es l'assistant personnel de ${profile.prenom || 'l\'utilisateur'}, intégré dans Personal OS — leur tableau de bord de vie.
+  const hour = new Date().getHours()
+  const timeContext = hour < 7 ? 'tôt le matin (avant 7h)'
+    : hour < 12 ? 'ce matin'
+    : hour < 14 ? 'à l\'heure du déjeuner'
+    : hour < 18 ? 'cet après-midi'
+    : hour < 21 ? 'ce soir'
+    : 'tard le soir'
 
-Tu connais tout de leur situation aujourd'hui (${todayLabel}) :
+  const modeContext = profile.mode === 'etudiant'
+    ? 'étudiant(e) — priorise les révisions, examens et devoirs'
+    : profile.mode === 'entrepreneur'
+    ? 'professionnel(le) / entrepreneur(e) — priorise les projets, clients et productivité'
+    : 'étudiant(e) ET entrepreneur(e) — jongle entre études et projets'
+
+  const systemPrompt = `Tu es l'assistant personnel de ${profile.prenom || 'l\'utilisateur'}, intégré dans Personal OS.
+
+**PROFIL** : ${modeContext}
+**MOMENT** : ${todayLabel}, ${timeContext}
+
+Tu connais leur situation aujourd'hui :
 
 **TÂCHES URGENTES (deadline aujourd'hui)** : ${urgentTasks.length === 0 ? 'Aucune' : urgentTasks.map((t: any) => `"${t.name}" (${t.priority})`).join(', ')}
 

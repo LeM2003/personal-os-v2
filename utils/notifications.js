@@ -191,6 +191,29 @@ export async function checkAndNotify({ tasks = [], examens = [], devoirs = [], c
     }
   }
 
+  // ── Rappels de tâches ponctuelles avec heure (taskTime) ─
+  for (const task of tasks) {
+    if (!task.taskTime || task.recurring || task.status === 'Terminé') continue
+    if (task.deadline !== today) continue
+
+    const [th, tm] = task.taskTime.split(':').map(Number)
+    const nowMin = now.getHours() * 60 + now.getMinutes()
+    const taskMin = th * 60 + tm
+    const diff = taskMin - nowMin
+
+    if (diff >= -2 && diff <= 5) {
+      const key = `tasktime-${task.id}-${today}`
+      if (!wasNotifiedToday(key)) {
+        await showNotif(
+          `⏰ ${task.name}`,
+          `Prévu à ${task.taskTime}`,
+          key
+        )
+        markNotified(key)
+      }
+    }
+  }
+
   // ── Rappels de tâches récurrentes (à l'heure configurée) ─
   const now = new Date()
   const currentTime = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`
