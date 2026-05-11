@@ -13,30 +13,58 @@ export async function POST(req: NextRequest) {
   const today = new Date().toISOString().split('T')[0]
   const todayLabel = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
 
-  // Build a rich context summary from user data
   const ctx = context || {}
-  const tasks = ctx.tasks || []
-  const examens = ctx.examens || []
-  const devoirs = ctx.devoirs || []
-  const projects = ctx.projects || []
-  const expenses = ctx.expenses || []
-  const profile = ctx.profile || {}
-  const streak = ctx.streak || 0
+  const tasks        = (ctx.tasks        || []) as Record<string, unknown>[]
+  const examens      = (ctx.examens      || []) as Record<string, unknown>[]
+  const devoirs      = (ctx.devoirs      || []) as Record<string, unknown>[]
+  const projects     = (ctx.projects     || []) as Record<string, unknown>[]
+  const expenses     = (ctx.expenses     || []) as Record<string, unknown>[]
+  const profile      = (ctx.profile      || {}) as Record<string, unknown>
+  const streak       = (ctx.streak       || 0)  as number
 
-  const urgentTasks = tasks.filter((t: any) => t.status !== 'Terminé' && !t.recurring && t.deadline === today)
-  const pendingTasks = tasks.filter((t: any) => t.status !== 'Terminé' && !t.recurring).slice(0, 5)
+  // Contexte enrichi avec IDs pour permettre les actions de modification
+  const pendingTasks = tasks
+    .filter(t => t.status !== 'Terminé' && !t.recurring)
+    .slice(0, 10)
+    .map(t => `[${t.id}] "${t.name}" — ${t.status}${t.deadline ? ' · deadline ' + t.deadline : ''}${t.priority ? ' · ' + t.priority : ''}`)
+    .join('\n')
+
+  const recurringTasks = tasks
+    .filter(t => t.recurring && t.status !== 'Terminé')
+    .slice(0, 5)
+    .map(t => `[${t.id}] "${t.name}" (récurrente)`)
+    .join('\n')
+
+  const urgentToday = tasks
+    .filter(t => t.status !== 'Terminé' && !t.recurring && t.deadline === today)
+    .map(t => `[${t.id}] "${t.name}"`)
+    .join(', ')
+
   const upcomingExams = examens
-    .filter((e: any) => new Date(e.date) >= new Date(today))
-    .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime())
-    .slice(0, 3)
-  const pendingDevoirs = devoirs.filter((d: any) => d.statut !== 'Rendu').slice(0, 3)
-  const activeProjects = projects.filter((p: any) => p.status !== 'Terminé').slice(0, 3)
+    .filter(e => String(e.date) >= today)
+    .sort((a, b) => String(a.date).localeCompare(String(b.date)))
+    .slice(0, 5)
+    .map(e => `[${e.id}] ${e.matiere} le ${e.date}${e.heure ? ' à ' + e.heure : ''}`)
+    .join('\n')
+
+  const pendingDevoirs = devoirs
+    .filter(d => d.statut !== 'Rendu')
+    .slice(0, 5)
+    .map(d => `[${d.id}] ${d.matiere}${d.dateRendu ? ' — avant ' + d.dateRendu : ''}`)
+    .join('\n')
+
+  const activeProjects = projects
+    .filter(p => p.status !== 'Terminé')
+    .slice(0, 5)
+    .map(p => `[${p.id}] "${p.name}"`)
+    .join('\n')
+
   const weekExpenses = expenses
-    .filter((e: any) => e.date >= new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0])
-    .reduce((s: number, e: any) => s + (e.amount || 0), 0)
+    .filter(e => String(e.date) >= new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0])
+    .reduce((s, e) => s + (Number(e.amount) || 0), 0)
 
   const hour = new Date().getHours()
-  const timeContext = hour < 7 ? 'tôt le matin (avant 7h)'
+  const timeContext = hour < 7 ? 'tôt le matin'
     : hour < 12 ? 'ce matin'
     : hour < 14 ? 'à l\'heure du déjeuner'
     : hour < 18 ? 'cet après-midi'
@@ -44,92 +72,123 @@ export async function POST(req: NextRequest) {
     : 'tard le soir'
 
   const modeContext = profile.mode === 'etudiant'
-    ? 'étudiant(e) — priorise les révisions, examens et devoirs'
+    ? 'étudiant(e)'
     : profile.mode === 'entrepreneur'
-    ? 'professionnel(le) / entrepreneur(e) — priorise les projets, clients et productivité'
-    : 'étudiant(e) ET entrepreneur(e) — jongle entre études et projets'
+    ? 'professionnel(le) / entrepreneur(e)'
+    : 'étudiant(e) ET entrepreneur(e)'
 
   const systemPrompt = `Tu es l'assistant personnel de ${profile.prenom || 'l\'utilisateur'}, intégré dans Personal OS.
 
 **PROFIL** : ${modeContext}
 **MOMENT** : ${todayLabel}, ${timeContext}
+**STREAK** : ${streak} jour(s) consécutifs
 
-Tu connais leur situation aujourd'hui :
+═══ DONNÉES ACTUELLES (avec IDs pour les actions) ═══
 
-**TÂCHES URGENTES (deadline aujourd'hui)** : ${urgentTasks.length === 0 ? 'Aucune' : urgentTasks.map((t: any) => `"${t.name}" (${t.priority})`).join(', ')}
+TÂCHES URGENTES AUJOURD'HUI :
+${urgentToday || 'Aucune'}
 
-**TÂCHES EN ATTENTE** : ${pendingTasks.length === 0 ? 'Aucune' : pendingTasks.map((t: any) => `"${t.name}" — ${t.status}`).join('; ')}
+TÂCHES EN ATTENTE :
+${pendingTasks || 'Aucune'}
 
-**PROCHAINS EXAMENS** : ${upcomingExams.length === 0 ? 'Aucun' : upcomingExams.map((e: any) => `${e.matiere} le ${e.date}${e.heure ? ' à ' + e.heure : ''}`).join('; ')}
+TÂCHES RÉCURRENTES :
+${recurringTasks || 'Aucune'}
 
-**DEVOIRS À RENDRE** : ${pendingDevoirs.length === 0 ? 'Aucun' : pendingDevoirs.map((d: any) => `${d.matiere} — avant ${d.dateRendu || '?'}`).join('; ')}
+PROCHAINS EXAMENS :
+${upcomingExams || 'Aucun'}
 
-**PROJETS ACTIFS** : ${activeProjects.length === 0 ? 'Aucun' : activeProjects.map((p: any) => p.name).join(', ')}
+DEVOIRS À RENDRE :
+${pendingDevoirs || 'Aucun'}
 
-**STREAK** : ${streak} jour(s) consécutifs actifs
-**DÉPENSES (7 derniers jours)** : ${weekExpenses.toLocaleString('fr-FR')} FCFA
+PROJETS ACTIFS :
+${activeProjects || 'Aucun'}
 
-Ta mission :
-- Répondre en français, de façon concise et actionnable
-- Être encourageant, direct, comme un assistant personnel bienveillant
-- Réponses courtes (3-5 phrases max sauf si demande détaillée)
-- Ne pas inventer de données absentes du contexte
+DÉPENSES (7 derniers jours) : ${weekExpenses.toLocaleString('fr-FR')} FCFA
 
-## ACTIONS DISPONIBLES
+═══ COMPORTEMENT ═══
 
-Quand l'utilisateur veut CRÉER quelque chose, inclus un bloc d'action à la fin de ta réponse.
-Format exact (JSON sur une seule ligne) :
+- Réponds en français, de façon concise et directe (3-5 phrases max)
+- Sois encourageant comme un assistant personnel bienveillant
+- N'invente JAMAIS de données absentes du contexte
+- Utilise les IDs entre crochets pour les actions de modification
 
-Pour une tâche :
-[ACTION:create_task:{"name":"...","priority":"Critique|Important|Optionnel","deadline":"YYYY-MM-DD ou vide","project":""}]
+═══ ACTIONS DISPONIBLES ═══
 
-Pour une idée/projet :
-[ACTION:create_idea:{"name":"...","objective":"...","type":"idee"}]
+Inclus UN SEUL bloc action à la toute fin de ta réponse quand l'utilisateur veut agir.
+Format exact — JSON sur une seule ligne sans retour à la ligne dans le JSON :
 
-Pour un examen :
+CRÉER une tâche :
+[ACTION:create_task:{"name":"...","priority":"Critique|Important|Optionnel","deadline":"YYYY-MM-DD ou vide","duration":25}]
+
+CRÉER un projet/idée :
+[ACTION:create_idea:{"name":"...","objective":"..."}]
+
+CRÉER un examen :
 [ACTION:create_exam:{"matiere":"...","date":"YYYY-MM-DD","heure":"HH:MM","salle":""}]
 
-Pour un devoir :
-[ACTION:create_devoir:{"matiere":"...","description":"...","dateRendu":"YYYY-MM-DD","priorite":"Critique|Important|Optionnel"}]
+CRÉER un devoir :
+[ACTION:create_devoir:{"matiere":"...","description":"...","dateRendu":"YYYY-MM-DD","priorite":"Important"}]
 
-Pour une dépense :
+CRÉER une dépense :
 [ACTION:create_expense:{"name":"...","amount":0,"category":"Alimentation|Transport|Loisirs|Santé|Autre"}]
 
-Règles :
-- N'inclus UN SEUL bloc ACTION par réponse
-- Le bloc ACTION doit être à la toute fin du message
-- Utilise des actions seulement quand l'utilisateur demande explicitement de créer quelque chose
-- La date du jour est ${today} — convertis les dates relatives (demain, vendredi prochain, etc.)
-- Si une info manque (date, priorité...), choisis une valeur raisonnable par défaut`
+MARQUER une tâche comme terminée :
+[ACTION:complete_task:{"id":"id_exact_de_la_tache","name":"nom affiché"}]
 
-  const stream = await groq.chat.completions.create({
-    model: 'llama-3.3-70b-versatile',
-    messages: [
-      { role: 'system', content: systemPrompt },
-      ...messages,
-    ],
-    temperature: 0.5,
-    max_tokens: 512,
-    stream: true,
-  })
+MODIFIER la deadline d'une tâche :
+[ACTION:update_task_deadline:{"id":"id_exact","name":"nom affiché","deadline":"YYYY-MM-DD"}]
 
-  // Return a streaming response
-  const encoder = new TextEncoder()
-  const readable = new ReadableStream({
-    async start(controller) {
-      for await (const chunk of stream) {
-        const text = chunk.choices[0]?.delta?.content || ''
-        if (text) controller.enqueue(encoder.encode(text))
-      }
-      controller.close()
-    },
-  })
+MODIFIER la priorité d'une tâche :
+[ACTION:update_task_priority:{"id":"id_exact","name":"nom affiché","priority":"Critique|Important|Optionnel"}]
 
-  return new Response(readable, {
-    headers: {
-      'Content-Type': 'text/plain; charset=utf-8',
-      'Transfer-Encoding': 'chunked',
-      'Cache-Control': 'no-cache',
-    },
-  })
+SUPPRIMER une tâche :
+[ACTION:delete_task:{"id":"id_exact","name":"nom affiché"}]
+
+MARQUER un devoir comme rendu :
+[ACTION:complete_devoir:{"id":"id_exact","matiere":"matière"}]
+
+LANCER le pomodoro sur une tâche :
+[ACTION:start_pomodoro:{"id":"id_exact","name":"nom affiché","duration":25}]
+
+Règles absolues :
+- Utilise UNIQUEMENT les IDs qui apparaissent dans les données ci-dessus (entre crochets [])
+- N'invente jamais un ID
+- La date du jour est ${today} — convertis les dates relatives (demain, vendredi prochain...)
+- Si tu n'es pas sûr de l'ID, pose la question plutôt que d'agir
+- Le bloc ACTION doit être à la toute fin du message, sur sa propre ligne`
+
+  try {
+    const stream = await groq.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        ...messages,
+      ],
+      temperature: 0.4,
+      max_tokens: 600,
+      stream: true,
+    })
+
+    const encoder = new TextEncoder()
+    const readable = new ReadableStream({
+      async start(controller) {
+        for await (const chunk of stream) {
+          const text = chunk.choices[0]?.delta?.content || ''
+          if (text) controller.enqueue(encoder.encode(text))
+        }
+        controller.close()
+      },
+    })
+
+    return new Response(readable, {
+      headers: {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'Transfer-Encoding': 'chunked',
+        'Cache-Control': 'no-cache',
+      },
+    })
+  } catch (err) {
+    console.error('[assistant] Groq stream error:', err)
+    return new Response(JSON.stringify({ error: 'Erreur IA' }), { status: 500 })
+  }
 }
