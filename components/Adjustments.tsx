@@ -1,25 +1,25 @@
-// @ts-nocheck — migration TypeScript en attente
 "use client"
 
 import { useApp } from '../context/AppContext'
 import { genId, todayISO, fmtDate } from '../utils/dates'
 import PageHeader from './shared/PageHeader'
+import type { Adjustment, TaskStatus } from '@/types'
 
-const REASON_LABELS = { 'manque de temps': 'Manque de temps', 'fatigue': 'Fatigue', 'autre': 'Autre raison' }
-const REASON_COLORS = { 'manque de temps': '#f87171', 'fatigue': '#fb923c', 'autre': '#60a5fa' }
+const REASON_LABELS: Record<string, string> = { 'manque de temps': 'Manque de temps', 'fatigue': 'Fatigue', 'autre': 'Autre raison' }
+const REASON_COLORS: Record<string, string> = { 'manque de temps': '#f87171', 'fatigue': '#fb923c', 'autre': '#60a5fa' }
 
 export default function Ajustements() {
-  const { adjustments, setAdjustments, tasks, setTasks } = useApp()
-  const upd = (id, field, val) => setAdjustments(p => p.map(a => a.id === id ? { ...a, [field]: val } : a))
+  const { adjustments, setAdjustments, setTasks } = useApp()
+  const upd = (id: string, field: keyof Adjustment, val: string) => setAdjustments(p => p.map(a => a.id === id ? { ...a, [field]: val } : a))
 
-  const reschedule = adj => {
+  const reschedule = (adj: Adjustment) => {
     if (!adj.newDate) return
     const t = {
       ...(adj.originalTask || {}),
       id: adj.taskId || genId(),
       name: adj.taskName,
       deadline: adj.newDate,
-      status: 'À faire',
+      status: 'À faire' as TaskStatus,
       createdAt: todayISO(),
     }
     setTasks(p => [...p, t])

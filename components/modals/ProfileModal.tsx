@@ -43,7 +43,7 @@ export default function ProfileModal({ profile, onSave, onClose }: ProfileModalP
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay" role="dialog" aria-modal="true" onClick={onClose}>
       <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
         <h3 style={{ fontSize: 18, marginBottom: 16, color: 'var(--accent-1)' }}>👤 Ton profil</h3>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>

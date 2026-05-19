@@ -1,6 +1,7 @@
 "use client"
 
-import { lazy, Suspense, useState } from 'react'
+import { lazy, Suspense, useState, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { useDraggable } from '@/hooks/useDraggable'
 import { useApp } from '@/context/AppContext'
 import PomodoroModal from './shared/PomodoroModal'
@@ -8,6 +9,8 @@ import GlobalSearch from './shared/GlobalSearch'
 import InstallPrompt from './shared/InstallPrompt'
 import MissedReminders from './shared/MissedReminders'
 import AssistantIA from './shared/AssistantIA'
+import PageTransition from './shared/PageTransition'
+import { haptic } from '@/utils/haptics'
 import ProfileModal from './modals/ProfileModal'
 import BackupModal from './modals/BackupModal'
 import CalendarExportModal from './modals/CalendarExportModal'
@@ -61,13 +64,22 @@ export default function App() {
     searchOpen, setSearchOpen,
     profileModal, setProfileModal, backupModal, setBackupModal,
     importRef, exportData, importData,
-    tasks, devoirs, examens, projects, subscriptions,
+    tasks, devoirs, examens, projects, expenses, subscriptions,
   } = app
+  const searchParams = useSearchParams()
   const [mobileMore, setMobileMore] = useState(false)
   const [assistantOpen, setAssistantOpen] = useState(false)
   const fab = useDraggable({ right: 20, bottom: 76 })
   const { financeFormOpen, setFinanceFormOpen } = app
   const [loggedOut, setLoggedOut] = useState(false)
+
+  // Gérer les ?tab= URL params (raccourcis PWA, deep links)
+  useEffect(() => {
+    const tabParam = searchParams.get('tab')
+    if (tabParam && ['dashboard', 'taches', 'projets', 'ecole', 'finances', 'stats', 'ajustements'].includes(tabParam)) {
+      setTab(tabParam)
+    }
+  }, [searchParams, setTab])
 
   // Onglets filtrés selon le mode du profil
   const mode = profile?.mode ?? 'les-deux'
@@ -81,7 +93,11 @@ export default function App() {
     try { return localStorage.getItem('onboardingDone') === '1' } catch { return false }
   })
 
-  const logout = () => setLoggedOut(true)
+  const logout = () => {
+    if (typeof window !== 'undefined' && confirm('Veux-tu te deconnecter ? Tes donnees restent sauvegardees — tu pourras te reconnecter avec le meme prenom.')) {
+      setLoggedOut(true)
+    }
+  }
   const handleStart = (formData: typeof profile) => {
     setProfile(formData)
     setLoggedOut(false)
@@ -120,7 +136,7 @@ export default function App() {
   return (
     <div>
       {/* SIDEBAR */}
-      <aside className={`sidebar${sidebarOpen ? '' : ' collapsed'}`}>
+      <aside className={`sidebar${sidebarOpen ? '' : ' collapsed'}`} role="navigation" aria-label="Navigation principale">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 8, marginBottom: 28 }}>
           {sidebarOpen ? (
             <div>
@@ -156,7 +172,7 @@ export default function App() {
 
         <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 3 }}>
           {TABS.map(t => (
-            <div key={t.id} className={`nav-item${tab === t.id ? ' active' : ''}`} onClick={() => setTab(t.id)}
+            <div key={t.id} className={`nav-item${tab === t.id ? ' active' : ''}`} onClick={() => { haptic(3); setTab(t.id) }}
               title={!sidebarOpen ? t.label : undefined}
               style={!sidebarOpen ? { justifyContent: 'center', padding: '10px 0' } : undefined}>
               <span className="nav-icon">{t.icon}</span>
@@ -223,9 +239,9 @@ export default function App() {
       </aside>
 
       {/* MAIN */}
-      <main className="main-content" style={!sidebarOpen ? { marginLeft: 68 } : undefined}>
+      <main className="main-content" style={!sidebarOpen ? { marginLeft: 68 } : undefined} role="main">
         <MissedReminders />
-        <div className="page-enter" key={tab}>
+        <PageTransition tabKey={tab}>
           <Suspense fallback={<TabFallback />}>
             {tab === 'dashboard'   && <Dashboard />}
             {tab === 'taches'      && <Tasks />}
@@ -235,13 +251,13 @@ export default function App() {
             {tab === 'stats'       && <Stats />}
             {tab === 'ajustements' && <Adjustments />}
           </Suspense>
-        </div>
+        </PageTransition>
       </main>
 
       {/* BOTTOM NAV (mobile) — 5 onglets principaux */}
-      <nav className="bottom-nav">
+      <nav className="bottom-nav" role="navigation" aria-label="Navigation mobile">
         {TABS.filter(t => ['dashboard', 'taches', 'projets', 'finances', 'stats'].includes(t.id)).map(t => (
-          <button key={t.id} onClick={() => { setTab(t.id); setMobileMore(false) }} aria-label={t.label}
+          <button key={t.id} onClick={() => { haptic(3); setTab(t.id); setMobileMore(false) }} aria-label={t.label}
             style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column',
               alignItems: 'center', gap: 2, padding: '4px 6px', flex: 1,
               color: tab === t.id ? '#5B8DBF' : 'var(--muted)' }}>
@@ -325,7 +341,7 @@ export default function App() {
               <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', letterSpacing: 1.2,
                 textTransform: 'uppercase', padding: '0 20px', margin: '0 0 6px' }}>Navigation</p>
               {TABS.filter(t => !['dashboard','taches','projets','finances','stats'].includes(t.id)).map(t => (
-                <button key={t.id} onClick={() => { setTab(t.id); setMobileMore(false) }}
+                <button key={t.id} onClick={() => { haptic(3); setTab(t.id); setMobileMore(false) }}
                   style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 20px',
                     background: tab === t.id ? 'rgba(56,189,248,.08)' : 'none',
                     border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left',
@@ -437,7 +453,7 @@ export default function App() {
       {/* GLOBAL SEARCH */}
       {searchOpen && (
         <GlobalSearch
-          tasks={tasks} devoirs={devoirs} examens={examens} projects={projects}
+          tasks={tasks} devoirs={devoirs} examens={examens} projects={projects} expenses={expenses}
           onNavigate={setTab} onClose={() => setSearchOpen(false)}
         />
       )}

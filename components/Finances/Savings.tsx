@@ -1,10 +1,10 @@
-// @ts-nocheck — migration TypeScript en attente
 "use client"
 
 import { useState } from 'react'
 import { Trash2, Plus, Minus, PiggyBank, Target } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { genId, todayISO, fmtDate } from '../../utils/dates'
+import { haptic, hapticSuccess } from '../../utils/haptics'
 import StatCard from '../shared/StatCard'
 import EmptyState from '../shared/EmptyState'
 
@@ -14,7 +14,7 @@ const blank = { name: '', goal: '', current: '', color: COLORS[0], note: '' }
 export default function Epargne() {
   const { savings, setSavings } = useApp()
   const [form, setForm] = useState(blank)
-  const [txForId, setTxForId] = useState(null)
+  const [txForId, setTxForId] = useState<string | null>(null)
   const [txAmount, setTxAmount] = useState('')
 
   const add = () => {
@@ -30,16 +30,19 @@ export default function Epargne() {
       history: form.current ? [{ id: genId(), amount: +form.current, type: 'depot', date: todayISO() }] : [],
     }])
     setForm(blank)
+    hapticSuccess()
   }
 
-  const del = (id) => {
+  const del = (id: string) => {
     if (!confirm('Supprimer ce pot ? Tout l\'historique sera perdu.')) return
+    haptic(8)
     setSavings(p => p.filter(s => s.id !== id))
   }
 
-  const applyTx = (id, sign) => {
+  const applyTx = (id: string, sign: number) => {
     const amt = +txAmount
     if (!amt || amt <= 0) return
+    hapticSuccess()
     setSavings(p => p.map(s => {
       if (s.id !== id) return s
       const delta = sign * amt
@@ -133,7 +136,7 @@ export default function Epargne() {
                       <div className="progress-fill" style={{ width: `${pct}%`, background: pot.color }} />
                     </div>
                     <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 12 }}>
-                      {pct}% · reste {reste.toLocaleString()} F
+                      {pct}% · reste {(reste ?? 0).toLocaleString()} F
                     </div>
                   </>
                 )}

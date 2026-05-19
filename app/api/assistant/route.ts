@@ -1,9 +1,35 @@
 import { NextRequest } from 'next/server'
 import Groq from 'groq-sdk'
+import { rateLimit } from '@/utils/rateLimit'
+
+const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 100 })
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
 
+function getClientIp(req: NextRequest): string {
+  return req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+    || req.headers.get('x-real-ip')
+    || 'unknown'
+}
+
 export async function POST(req: NextRequest) {
+  const ip = getClientIp(req)
+  const { success, remaining } = limiter(ip)
+
+  if (!success) {
+    return new Response(
+      JSON.stringify({ error: 'Trop de requêtes. Réessayez dans quelques minutes.' }),
+      {
+        status: 429,
+        headers: {
+          'Content-Type': 'application/json',
+          'Retry-After': String(15 * 60),
+          'X-RateLimit-Remaining': '0',
+        },
+      },
+    )
+  }
+
   if (!process.env.GROQ_API_KEY) {
     return new Response(JSON.stringify({ error: 'GROQ_API_KEY non configurée' }), { status: 500 })
   }
@@ -14,15 +40,14 @@ export async function POST(req: NextRequest) {
   const todayLabel = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
 
   const ctx = context || {}
-  const tasks        = (ctx.tasks        || []) as Record<string, unknown>[]
-  const examens      = (ctx.examens      || []) as Record<string, unknown>[]
-  const devoirs      = (ctx.devoirs      || []) as Record<string, unknown>[]
-  const projects     = (ctx.projects     || []) as Record<string, unknown>[]
-  const expenses     = (ctx.expenses     || []) as Record<string, unknown>[]
-  const profile      = (ctx.profile      || {}) as Record<string, unknown>
-  const streak       = (ctx.streak       || 0)  as number
+  const tasks = (ctx.tasks || []) as Record<string, unknown>[]
+  const examens = (ctx.examens || []) as Record<string, unknown>[]
+  const devoirs = (ctx.devoirs || []) as Record<string, unknown>[]
+  const projects = (ctx.projects || []) as Record<string, unknown>[]
+  const expenses = (ctx.expenses || []) as Record<string, unknown>[]
+  const profile = (ctx.profile || {}) as Record<string, unknown>
+  const streak = (ctx.streak || 0) as number
 
-  // Contexte enrichi avec IDs pour permettre les actions de modification
   const pendingTasks = tasks
     .filter(t => t.status !== 'Terminé' && !t.recurring)
     .slice(0, 10)
@@ -185,6 +210,7 @@ Règles absolues :
         'Content-Type': 'text/plain; charset=utf-8',
         'Transfer-Encoding': 'chunked',
         'Cache-Control': 'no-cache',
+        'X-RateLimit-Remaining': String(remaining),
       },
     })
   } catch (err) {

@@ -1,4 +1,3 @@
-// @ts-nocheck — migration TypeScript en attente
 "use client"
 
 import { useState, useEffect } from 'react'
@@ -35,12 +34,28 @@ const CTA_BTN = {
   boxShadow: '0 4px 24px rgba(56,189,248,.3)',
 }
 
-export default function LandingPage({ onStart }) {
-  const [form, setForm] = useState({ prenom: '', nom: '', role: 'Étudiant-entrepreneur' })
+import type { UserProfile } from '@/types'
+
+export default function LandingPage({ onStart }: { onStart: (profile: UserProfile) => void }) {
+  const [form, setForm] = useState({ prenom: '', nom: '', role: 'Étudiant-entrepreneur', mode: 'les-deux' as const })
   const [showSetup, setShowSetup] = useState(false)
   const [showSticky, setShowSticky] = useState(false)
 
-  const save = () => { if (!form.prenom.trim()) return; onStart(form) }
+  const save = () => {
+    if (!form.prenom.trim()) return
+    const roleToMode: Record<string, 'etudiant' | 'entrepreneur' | 'les-deux' | 'custom'> = {
+      'Étudiant': 'etudiant',
+      'Entrepreneur': 'entrepreneur',
+      'Étudiant-entrepreneur': 'les-deux',
+      'Cadre': 'entrepreneur',
+      'Directeur': 'entrepreneur',
+      'Freelance': 'entrepreneur',
+      'Parent': 'custom',
+      'Autre': 'custom',
+    }
+    const mode = roleToMode[form.role] || 'les-deux'
+    onStart({ prenom: form.prenom, nom: form.nom, mode })
+  }
 
   useEffect(() => {
     const onScroll = () => setShowSticky(window.scrollY > 400)
@@ -154,8 +169,8 @@ export default function LandingPage({ onStart }) {
       <section style={{ padding: 'clamp(20px, 4vw, 32px) 20px', textAlign: 'center' }}>
         <button onClick={() => setShowSetup(true)}
           style={{ ...CTA_BTN, padding: '14px 36px', fontSize: 16 }}
-          onMouseOver={e => e.target.style.transform = 'translateY(-2px)'}
-          onMouseOut={e => e.target.style.transform = 'translateY(0)'}>
+          onMouseOver={e => (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-2px)'}
+          onMouseOut={e => (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0)'}>
           Essayer
         </button>
       </section>
@@ -216,8 +231,8 @@ export default function LandingPage({ onStart }) {
           Gratuit. Rapide. Sans condition.
         </p>
         <button onClick={() => setShowSetup(true)} style={CTA_BTN}
-          onMouseOver={e => { e.target.style.transform = 'translateY(-2px)'; e.target.style.boxShadow = '0 6px 30px rgba(91,141,191,.4)' }}
-          onMouseOut={e => { e.target.style.transform = 'translateY(0)'; e.target.style.boxShadow = '0 4px 24px rgba(91,141,191,.28)' }}>
+          onMouseOver={e => { const t = e.currentTarget as HTMLButtonElement; t.style.transform = 'translateY(-2px)'; t.style.boxShadow = '0 6px 30px rgba(91,141,191,.4)' }}
+          onMouseOut={e => { const t = e.currentTarget as HTMLButtonElement; t.style.transform = 'translateY(0)'; t.style.boxShadow = '0 4px 24px rgba(91,141,191,.28)' }}>
           Entrer
         </button>
         <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 14 }}>

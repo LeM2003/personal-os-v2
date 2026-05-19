@@ -1,4 +1,3 @@
-// @ts-nocheck — migration TypeScript en attente
 "use client"
 
 import { useState, useMemo } from 'react'
@@ -20,7 +19,7 @@ const MAX_END = 23
 const DEFAULT_RANGE = { start: 8, end: 18 }
 
 // "HH:MM" → décimal (ex: "08:30" → 8.5)
-const parseTime = (s) => {
+const parseTime = (s: string | null | undefined): number | null => {
   if (!s || typeof s !== 'string') return null
   const [h, m] = s.split(':').map(n => parseInt(n, 10) || 0)
   return h + m / 60
@@ -34,7 +33,7 @@ const weekStartISO = () => {
   return d.toISOString().split('T')[0]
 }
 
-const addDaysISO = (iso, n) => {
+const addDaysISO = (iso: string, n: number) => {
   const d = new Date(iso + 'T00:00:00')
   d.setDate(d.getDate() + n)
   return d.toISOString().split('T')[0]
@@ -44,7 +43,7 @@ export default function EmploiDuTemps() {
   const { courses, setCourses } = useApp()
   const [showForm,  setShowForm]  = useState(false)
   const [form,      setForm]      = useState(blankForm)
-  const [editingId, setEditingId] = useState(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const dayNow = todayDay()
   const today  = todayISO()
 
@@ -53,16 +52,16 @@ export default function EmploiDuTemps() {
   const weekEnd = addDaysISO(weekStart, 5) // samedi
 
   const openAdd = () => { setEditingId(null); setForm(blankForm); setShowForm(true) }
-  const openEdit = (c) => {
+  const openEdit = (c: import('@/types').Course) => {
     setEditingId(c.id)
-    setForm({ nom: c.nom, jours: [c.jour], heureDebut: c.heureDebut, heureFin: c.heureFin,
-      salle: c.salle || '', professeur: c.professeur || '', color: c.color,
+    setForm({ nom: c.nom, jours: [c.jour], heureDebut: c.heureDebut, heureFin: c.heureFin ?? '',
+      salle: c.salle || '', professeur: c.professeur || '', color: c.color ?? '#6366f1',
       dateDebut: c.dateDebut || '', dateFin: c.dateFin || '' })
     setShowForm(true)
   }
   const closeForm = () => { setShowForm(false); setEditingId(null); setForm(blankForm) }
 
-  const toggleJour = (jour) => {
+  const toggleJour = (jour: string) => {
     setForm(f => {
       const has = f.jours.includes(jour)
       const next = has ? f.jours.filter(j => j !== jour) : [...f.jours, jour]
@@ -90,7 +89,7 @@ export default function EmploiDuTemps() {
     closeForm()
   }
 
-  const del = (id) => {
+  const del = (id: string) => {
     setCourses(p => p.filter(c => c.id !== id))
     closeForm()
   }
@@ -104,7 +103,7 @@ export default function EmploiDuTemps() {
     setCourses([])
   }
 
-  const togglePresence = (id) => {
+  const togglePresence = (id: string) => {
     setCourses(p => p.map(c => {
       if (c.id !== id) return c
       const attended = c.attended || []
@@ -113,9 +112,9 @@ export default function EmploiDuTemps() {
     }))
   }
 
-  const isPresent = (c) => (c.attended || []).includes(today)
+  const isPresent = (c: import('@/types').Course) => (c.attended || []).includes(today)
 
-  const isActiveToday = (c) => {
+  const isActiveToday = (c: import('@/types').Course) => {
     if (c.dateDebut && today < c.dateDebut) return false
     if (c.dateFin && today > c.dateFin) return false
     return true
@@ -141,7 +140,7 @@ export default function EmploiDuTemps() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [courses, today])
 
-  const clampTL = (h) => Math.max(TL_START, Math.min(TL_END, h))
+  const clampTL = (h: number) => Math.max(TL_START, Math.min(TL_END, h))
 
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 640
   const sortedJours = isMobile
@@ -316,8 +315,8 @@ export default function EmploiDuTemps() {
                 {dayCourses.map(c => {
                   const present = isPresent(c)
                   const attendCount = (c.attended || []).length
-                  const start = clampTL(parseTime(c.heureDebut))
-                  const end = clampTL(parseTime(c.heureFin))
+                  const start = clampTL(parseTime(c.heureDebut) ?? TL_START)
+                  const end = clampTL(parseTime(c.heureFin) ?? TL_END)
                   const top = (start - TL_START) * HOUR_PX
                   const height = Math.max(26, (end - start) * HOUR_PX - 2)
                   const compact = height < 70
@@ -366,7 +365,7 @@ export default function EmploiDuTemps() {
                             ? `${fmtDate(c.dateDebut)} → ${fmtDate(c.dateFin)}`
                             : c.dateFin
                               ? `Jusqu'au ${fmtDate(c.dateFin)}`
-                              : `Dès le ${fmtDate(c.dateDebut)}`}
+                              : `Dès le ${fmtDate(c.dateDebut ?? undefined)}`}
                         </p>
                       )}
                       {height >= 140 && attendCount > 0 && !isToday && (
@@ -407,7 +406,7 @@ export default function EmploiDuTemps() {
   )
 }
 
-function buildTimeline(start, end) {
+function buildTimeline(start: number, end: number) {
   const step = (end - start) > 12 ? 2 : (end - start) > 8 ? 2 : 1
   const marks = []
   for (let h = start; h <= end; h += step) marks.push(h)

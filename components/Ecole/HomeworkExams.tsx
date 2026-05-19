@@ -1,4 +1,3 @@
-// @ts-nocheck — migration TypeScript en attente
 "use client"
 
 import { useState } from 'react'
@@ -57,8 +56,8 @@ export default function DevoirsExamens() {
     setShowEForm(false)
   }
 
-  const sortedDevoirs = [...devoirs].sort((a, b) => new Date(a.dateRendu) - new Date(b.dateRendu))
-  const sortedExamens = [...examens].sort((a, b) => new Date(a.date) - new Date(b.date))
+  const sortedDevoirs = [...devoirs].sort((a, b) => new Date(a.dateRendu).getTime() - new Date(b.dateRendu).getTime())
+  const sortedExamens = [...examens].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }} className="grid-2">
@@ -153,9 +152,9 @@ export default function DevoirsExamens() {
                 placeholder="Chapitres à réviser (ex: Tri, Graphes)" />
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                 <input type="number" min={1} value={eForm.totalChapitres}
-                  onChange={e => setEForm({ ...eForm, totalChapitres: e.target.value })} placeholder="Total chapitres" />
+                  onChange={e => setEForm({ ...eForm, totalChapitres: +e.target.value })} placeholder="Total chapitres" />
                 <input type="number" min={0} value={eForm.chapitresRevises}
-                  onChange={e => setEForm({ ...eForm, chapitresRevises: e.target.value })} placeholder="Chapitres révisés" />
+                  onChange={e => setEForm({ ...eForm, chapitresRevises: +e.target.value })} placeholder="Chapitres révisés" />
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button className="btn-gold" style={{ fontSize: 13 }} onClick={addExamen}>Ajouter</button>
@@ -169,8 +168,8 @@ export default function DevoirsExamens() {
           ? <EmptyState mark="grid" tone="muted" title="Pas d'examen en vue." subtitle="Bonne période pour prendre de l'avance." />
           : sortedExamens.map(e => {
             const due = daysUntil(e.date)
-            const total = +e.totalChapitres || 1
-            const revus = Math.min(+e.chapitresRevises || 0, total)
+            const total = +(e.totalChapitres ?? 0) || 1
+            const revus = Math.min(+(e.chapitresRevises ?? 0) || 0, total)
             const pct = Math.round((revus / total) * 100)
             const isPast = due < 0
             const isToday = due === 0

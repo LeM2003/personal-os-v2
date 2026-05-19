@@ -42,7 +42,7 @@ export default function PomodoroModal({ pomo, onPause, onStop, onDone }: Pomodor
   })()
 
   return (
-    <div className="modal-overlay" style={{ zIndex: 9998 }}>
+    <div className="modal-overlay" role="dialog" aria-modal="true" style={{ zIndex: 9998 }}>
       <div className="modal-box" style={{ maxWidth: 360, textAlign: 'center', padding: '32px 28px' }}>
         <p style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: .8, marginBottom: 6 }}>
           Session de travail

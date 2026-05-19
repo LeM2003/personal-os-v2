@@ -1,4 +1,3 @@
-// @ts-nocheck — migration TypeScript en attente
 "use client"
 
 import { useState } from 'react'

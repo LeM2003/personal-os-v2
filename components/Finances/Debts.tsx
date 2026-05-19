@@ -1,10 +1,10 @@
-// @ts-nocheck — migration TypeScript en attente
 "use client"
 
 import { useState } from 'react'
 import { Trash2, Check, RotateCcw, HandCoins, ArrowDownLeft, ArrowUpRight } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { genId, todayISO, fmtDate } from '../../utils/dates'
+import { haptic, hapticSuccess } from '../../utils/haptics'
 import StatCard from '../shared/StatCard'
 import EmptyState from '../shared/EmptyState'
 
@@ -19,13 +19,20 @@ export default function Dettes() {
     if (!form.person.trim() || !form.amount) return
     setDebts(p => [...p, { ...form, amount: +form.amount, id: genId(), paid: false, paidAt: null }])
     setForm({ ...blank, date: todayISO() })
+    hapticSuccess()
   }
 
-  const togglePaid = (id) => setDebts(p => p.map(d => d.id === id
-    ? { ...d, paid: !d.paid, paidAt: !d.paid ? todayISO() : null }
-    : d
-  ))
-  const del = (id) => setDebts(p => p.filter(d => d.id !== id))
+  const togglePaid = (id: string) => {
+    hapticSuccess()
+    setDebts(p => p.map(d => d.id === id
+      ? { ...d, paid: !d.paid, paidAt: !d.paid ? todayISO() : null }
+      : d
+    ))
+  }
+  const del = (id: string) => {
+    haptic(8)
+    setDebts(p => p.filter(d => d.id !== id))
+  }
 
   const actives = debts.filter(d => !d.paid)
   const jeDoisTotal   = actives.filter(d => d.direction === 'je_dois').reduce((s, d) => s + d.amount, 0)
@@ -34,7 +41,7 @@ export default function Dettes() {
 
   const shown = debts
     .filter(d => filter === 'toutes' ? true : filter === 'actives' ? !d.paid : d.paid)
-    .sort((a, b) => new Date(b.date) - new Date(a.date))
+    .sort((a, b) => new Date(b.date ?? '').getTime() - new Date(a.date ?? '').getTime())
 
   return (
     <div className="page-enter">
@@ -74,7 +81,7 @@ export default function Dettes() {
         <EmptyState
           icon={<HandCoins size={42} />}
           msg={filter === 'payees' ? "Rien de réglé pour l'instant." : "Pas de dette. C'est sain."}
-          sub={filter === 'actives' ? 'Tant mieux — ou note celles à suivre ci-dessus.' : null}
+          sub={filter === 'actives' ? 'Tant mieux — ou note celles à suivre ci-dessus.' : undefined}
         />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }} className="stagger">

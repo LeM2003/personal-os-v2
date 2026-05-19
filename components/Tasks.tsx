@@ -1,4 +1,3 @@
-// @ts-nocheck — migration TypeScript en attente
 "use client"
 
 import { useState, useRef, useEffect } from 'react'
@@ -11,24 +10,42 @@ import TextImport from './shared/TextImport'
 import SwipeRow from './shared/SwipeRow'
 import BottomSheet from './shared/BottomSheet'
 import { haptic, hapticSuccess } from '../utils/haptics'
+import type { Task, TaskStatus, Subtask, Homework, Exam } from '@/types'
 import {
   Pencil, X, CheckSquare, Repeat, Clock, Moon, RefreshCw,
   Folder, Calendar, AlertTriangle, Shuffle, Play,
   ChevronUp, ChevronDown, CheckCircle2, Circle, CircleDot
 } from 'lucide-react'
 
-const JOURS       = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
-const JOURS_SHORT = ['Lun',   'Mar',   'Mer',      'Jeu',   'Ven',      'Sam',    'Dim']
+const JOURS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
+const JOURS_SHORT = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
 
-const blank = {
+interface TaskForm {
+  name: string
+  details: string
+  project: string
+  priority: string
+  durationH: number
+  durationM: number
+  deadline: string
+  taskTime: string
+  flexible: boolean
+  recurring: boolean
+  recurrence: string
+  recurrenceDays: string[]
+  recurrenceTime: string
+  subtasks: { id: string; text: string; done: boolean }[]
+}
+
+const blank: TaskForm = {
   name: '', details: '', project: '', priority: 'Important',
   durationH: 0, durationM: 0,
   deadline: '', taskTime: '', flexible: false,
-  recurring: false, recurrence: 'daily', recurrenceDays: [], recurrenceTime: '',
+  recurring: false, recurrence: 'daily', recurrenceDays: [] as string[], recurrenceTime: '',
   subtasks: [],
 }
 
-const formatDur = (mins) => {
+const formatDur = (mins: number) => {
   if (!mins || mins <= 0) return null
   const h = Math.floor(mins / 60), m = mins % 60
   if (h > 0 && m > 0) return `${h}h ${m}min`
@@ -47,8 +64,8 @@ export default function Taches() {
   }, [])
   const [showForm,  setShowForm]  = useState(false)
   const [showImport, setShowImport] = useState(false)
-  const [form,      setForm]      = useState(blank)
-  const [editingId, setEditingId] = useState(null)
+  const [form, setForm] = useState<TaskForm>(blank)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [fStatus,   setFStatus]   = useState('Tous')
   const [fPriority, setFPriority] = useState('Tous')
   const [fDate,     setFDate]     = useState("Aujourd'hui")
@@ -56,8 +73,8 @@ export default function Taches() {
   const [showDone,  setShowDone]  = useState(false)
   const [newSubtask, setNewSubtask] = useState('')
   const [showDetails, setShowDetails] = useState(false)
-  const [expandedTaskId, setExpandedTaskId] = useState(null)
-  const [snoozeForId, setSnoozeForId] = useState(null)
+  const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null)
+  const [snoozeForId, setSnoozeForId] = useState<string | null>(null)
   const [filtersOpen, setFiltersOpen] = useState(false)
 
   const projectNames = projects ? [...new Set(projects.map(p => p.name).filter(Boolean))] : []
@@ -68,7 +85,7 @@ export default function Taches() {
   const monthEnd = (() => { const d = new Date(); d.setMonth(d.getMonth() + 1, 0); return d.toISOString().split('T')[0] })()
 
   // Est-ce qu'une tâche récurrente est prévue pour aujourd'hui ?
-  const recurringDueToday = (t) => {
+  const recurringDueToday = (t: Task) => {
     if (!t.recurring) return false
     if (t.recurrence === 'daily') return true
     if (t.recurrence === 'weekly') return (t.recurrenceDays || []).includes(dayName)
@@ -77,26 +94,26 @@ export default function Taches() {
   }
 
   const openAdd  = () => { setEditingId(null); setForm({ ...blank, deadline: todayISO() }); setShowDetails(false); setShowForm(true) }
-  const openEdit = task => {
+  const openEdit = (task: Task) => {
     setEditingId(task.id)
     setForm({
-      name: task.name, details: task.details || '', project: task.project || '', priority: task.priority,
+      name: task.name, details: task.details || '', project: task.project || '', priority: task.priority || 'Important',
       durationH: Math.floor((task.duration || 0) / 60),
       durationM: (task.duration || 0) % 60,
       deadline: task.deadline || '', flexible: !!task.flexible,
       recurring: !!task.recurring, recurrence: task.recurrence || 'daily',
       taskTime: task.taskTime || '',
       recurrenceDays: task.recurrenceDays || [], recurrenceTime: task.recurrenceTime || '',
-      subtasks: task.subtasks || [],
+      subtasks: (task.subtasks || []).map(s => ({ id: s.id, text: s.text || s.title || '', done: s.done })),
     })
     setShowForm(true)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
   const closeForm = () => { setShowForm(false); setEditingId(null); setForm(blank) }
 
-  const toggleDay = day => {
+  const toggleDay = (day: string) => {
     const days = form.recurrenceDays.includes(day)
-      ? form.recurrenceDays.filter(d => d !== day)
+      ? form.recurrenceDays.filter((d: string) => d !== day)
       : [...form.recurrenceDays, day]
     setForm({ ...form, recurrenceDays: days })
   }
@@ -108,64 +125,65 @@ export default function Taches() {
     if (editingId) {
       setTasks(p => p.map(t => t.id === editingId ? { ...t, ...form, duration, deadline } : t))
     } else {
-      setTasks(p => [...p, { ...form, duration, deadline, id: genId(), status: 'À faire', createdAt: todayISO(), lastCompletedAt: null }])
+      setTasks(p => [...p, { ...form, duration, deadline, id: genId(), status: 'À faire' as TaskStatus, createdAt: todayISO(), lastCompletedAt: null }])
     }
     closeForm()
   }
 
   // Sous-taches dans le formulaire
-  const addSubtaskToForm = (title) => {
+  const addSubtaskToForm = (title: string) => {
     if (!title.trim()) return
-    setForm(f => ({ ...f, subtasks: [...(f.subtasks || []), { id: genId(), title: title.trim(), done: false }] }))
+    setForm(f => ({ ...f, subtasks: [...(f.subtasks || []), { id: genId(), text: title.trim(), done: false }] }))
   }
-  const removeSubtaskFromForm = (sid) => {
+  const removeSubtaskFromForm = (sid: string) => {
     setForm(f => ({ ...f, subtasks: (f.subtasks || []).filter(s => s.id !== sid) }))
   }
 
   // Sous-taches sur une tache existante (toggle done)
-  const toggleSubtask = (taskId, sid) => setTasks(p => p.map(t => {
+  const toggleSubtask = (taskId: string, sid: string) => setTasks(p => p.map(t => {
     if (t.id !== taskId) return t
     return { ...t, subtasks: (t.subtasks || []).map(s => s.id === sid ? { ...s, done: !s.done } : s) }
   }))
 
   // Snooze : repousser la deadline de N jours a partir d'aujourd'hui
-  const snoozeTask = (taskId, days) => {
+  const snoozeTask = (taskId: string, days: number) => {
     const d = new Date(); d.setDate(d.getDate() + days)
     const newDeadline = d.toISOString().split('T')[0]
     setTasks(p => p.map(t => t.id === taskId ? { ...t, deadline: newDeadline } : t))
   }
 
-  const cycleStatus = id => {
+  const cycleStatus = (id: string) => {
     haptic(8)
     setTasks(p => p.map(t => {
       if (t.id !== id) return t
-      const next = { 'À faire': 'En cours', 'En cours': 'Terminé', 'Terminé': 'À faire' }[t.status]
+      const transitions: Record<string, TaskStatus> = { 'À faire': 'En cours', 'En cours': 'Terminé', 'Terminé': 'À faire' }
+      const next = transitions[t.status] ?? 'À faire'
       if (next === 'Terminé') {
         hapticSuccess()
-        if (t.recurring) return { ...t, status: 'Terminé', lastCompletedAt: todayISO() }
+        if (t.recurring) return { ...t, status: 'Terminé' as TaskStatus, lastCompletedAt: todayISO() }
       }
       return { ...t, status: next }
     }))
   }
 
   // Valide directement une tâche (swipe droite) — ne cycle pas
-  const completeTask = id => setTasks(p => p.map(t => {
+  const completeTask = (id: string) => setTasks(p => p.map(t => {
     if (t.id !== id || t.status === 'Terminé') return t
-    if (t.recurring) return { ...t, status: 'Terminé', lastCompletedAt: todayISO() }
-    return { ...t, status: 'Terminé' }
+    if (t.recurring) return { ...t, status: 'Terminé' as TaskStatus, lastCompletedAt: todayISO() }
+    return { ...t, status: 'Terminé' as TaskStatus }
   }))
 
-  const del      = id => setTasks(p => p.filter(t => t.id !== id))
-  const toAdjust = task => {
+  const del      = (id: string) => setTasks(p => p.filter(t => t.id !== id))
+  const toAdjust = (task: Task) => {
     setTasks(p => p.filter(t => t.id !== task.id))
     setAdjustments(p => [...p, {
       id: genId(), taskId: task.id, taskName: task.name,
-      originalDeadline: task.deadline, reason: 'autre', newDate: '', originalTask: { ...task }
+      originalDeadline: task.deadline ?? '', reason: 'autre', newDate: '', originalTask: { ...task }
     }])
   }
 
   // Date filter helper
-  const matchDate = (t) => {
+  const matchDate = (t: Task) => {
     if (fDate === 'Tout') return true
     if (!t.deadline && !t.recurring) return fDate === 'Tout'
     const dl = t.deadline || ''
@@ -189,25 +207,25 @@ export default function Taches() {
   const doneTasks = filtered.filter(t => t.status === 'Terminé')
 
   // Sort active by urgency: overdue first, then soonest deadline, then no deadline
-  const sortByUrgency = (a, b) => {
+  const sortByUrgency = (a: Task, b: Task) => {
     const da = a.deadline || '9999-99-99'
     const db = b.deadline || '9999-99-99'
     return da.localeCompare(db)
   }
   activeTasks.sort(sortByUrgency)
 
-  const grouped = { Critique: [], Important: [], Optionnel: [] }
-  activeTasks.forEach(t => (grouped[t.priority] ||= []).push(t))
+  const grouped: Record<string, Task[]> = { Critique: [], Important: [], Optionnel: [] }
+  activeTasks.forEach(t => (grouped[t.priority ?? 'Important'] ||= []).push(t))
 
-  const doneGrouped = { Critique: [], Important: [], Optionnel: [] }
-  doneTasks.forEach(t => (doneGrouped[t.priority] ||= []).push(t))
+  const doneGrouped: Record<string, Task[]> = { Critique: [], Important: [], Optionnel: [] }
+  doneTasks.forEach(t => (doneGrouped[t.priority ?? 'Important'] ||= []).push(t))
 
   // Counters
   const countCritique = activeTasks.filter(t => t.priority === 'Critique').length
   const countImportant = activeTasks.filter(t => t.priority === 'Important').length
   const countOptionnel = activeTasks.filter(t => t.priority === 'Optionnel').length
 
-  const handleImport = ({ taches, devoirs: newDevoirs, examens: newExamens }) => {
+  const handleImport = ({ taches, devoirs: newDevoirs, examens: newExamens }: { taches: Task[]; devoirs: Homework[]; examens: Exam[] }) => {
     if (taches.length > 0) setTasks(p => [...p, ...taches])
     if (newDevoirs.length > 0 && setDevoirs) setDevoirs(p => [...p, ...newDevoirs])
     if (newExamens.length > 0 && setExamens) setExamens(p => [...p, ...newExamens])
@@ -215,7 +233,7 @@ export default function Taches() {
 
   // ── Ajout rapide ──
   const [quickName, setQuickName] = useState('')
-  const quickRef = useRef(null)
+  const quickRef = useRef<HTMLInputElement>(null)
 
   const quickAdd = () => {
     const name = quickName.trim()
@@ -223,7 +241,7 @@ export default function Taches() {
     setTasks(prev => [...prev, {
       id: genId(), name, details: '', project: '',
       priority: 'Important', duration: 0,
-      deadline: todayISO(), flexible: false, status: 'À faire',
+      deadline: todayISO(), flexible: false, status: 'À faire' as TaskStatus,
       recurring: false, recurrence: 'daily', recurrenceDays: [], recurrenceTime: '',
       createdAt: todayISO(), lastCompletedAt: null, subtasks: [],
     }])
@@ -304,7 +322,7 @@ export default function Taches() {
                   {form.subtasks.map(s => (
                     <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8,
                       background: 'var(--surface-deep)', padding: '6px 10px', borderRadius: 6 }}>
-                      <span style={{ flex: 1, fontSize: 13 }}>{s.title}</span>
+                      <span style={{ flex: 1, fontSize: 13 }}>{s.text}</span>
                       <button type="button" className="btn-icon" onClick={() => removeSubtaskFromForm(s.id)} title="Retirer"><X size={14} /></button>
                     </div>
                   ))}
@@ -603,34 +621,56 @@ export default function Taches() {
   )
 }
 
-function recurringLabel(task) {
+function recurringLabel(task: Task) {
   if (!task.recurring) return null
   if (task.recurrence === 'daily')   return 'Quotidien'
   if (task.recurrence === 'monthly') return 'Mensuel'
   if (task.recurrence === 'weekly') {
-    const short = { Lundi:'Lun', Mardi:'Mar', Mercredi:'Mer', Jeudi:'Jeu', Vendredi:'Ven', Samedi:'Sam', Dimanche:'Dim' }
+    const short: Record<string, string> = { Lundi:'Lun', Mardi:'Mar', Mercredi:'Mer', Jeudi:'Jeu', Vendredi:'Ven', Samedi:'Sam', Dimanche:'Dim' }
     const days  = (task.recurrenceDays || []).map(d => short[d]).join(', ')
     return days ? `Chaque ${days}` : 'Hebdo'
   }
   return ''
 }
 
+interface TaskRowProps {
+  task: Task
+  cycleStatus: (id: string) => void
+  del: (id: string) => void
+  toAdjust: (task: Task) => void
+  onComplete?: (id: string) => void
+  onEdit: (task: Task) => void
+  isEditing: boolean
+  onPomo: (task: Task) => void
+  isRunning: boolean
+  expanded?: boolean
+  onToggleExpand?: () => void
+  onToggleSubtask?: (sid: string) => void
+  snoozeOpen?: boolean
+  onOpenSnooze?: () => void
+  onSnooze?: (days: number) => void
+  isMobile?: boolean
+}
+
 function TaskRow({ task, cycleStatus, del, toAdjust, onComplete, onEdit, isEditing, onPomo, isRunning,
   expanded, onToggleExpand, onToggleSubtask,
-  snoozeOpen, onOpenSnooze, onSnooze, isMobile = false }) {
+  snoozeOpen, onOpenSnooze, onSnooze, isMobile = false }: TaskRowProps) {
   const due         = daysUntil(task.deadline)
   const overdue     = due < 0
   const urgent      = due >= 0 && due <= 2
   const canPomo     = task.status !== 'Terminé'
-  const statusIcon  = {
+  const statusIconMap: Record<string, React.ReactElement> = {
     'À faire':  <Circle size={17} style={{ color: 'var(--muted)' }} />,
     'En cours': <CircleDot size={17} style={{ color: '#60a5fa' }} />,
     'Terminé':  <CheckCircle2 size={17} style={{ color: '#4ade80' }} />,
-  }[task.status]
-  const statusBg    = { 'À faire': 'var(--status-idle-bg)', 'En cours': 'rgba(59,130,246,.15)', 'Terminé': 'rgba(34,197,94,.15)' }[task.status]
-  const statusColor = { 'À faire': 'var(--muted)', 'En cours': '#60a5fa', 'Terminé': '#4ade80' }[task.status]
+  }
+  const statusIcon  = statusIconMap[task.status]
+  const statusBgMap: Record<string, string> = { 'À faire': 'var(--status-idle-bg)', 'En cours': 'rgba(59,130,246,.15)', 'Terminé': 'rgba(34,197,94,.15)' }
+  const statusBg    = statusBgMap[task.status]
+  const statusColorMap: Record<string, string> = { 'À faire': 'var(--muted)', 'En cours': '#60a5fa', 'Terminé': '#4ade80' }
+  const statusColor = statusColorMap[task.status]
   const nextDate    = task.recurring && task.status === 'Terminé' ? nextOccurrenceDate(task, task.lastCompletedAt) : null
-  const durLabel    = formatDur(task.duration)
+  const durLabel    = formatDur(task.duration ?? 0)
   const subs        = task.subtasks || []
   const subsDone    = subs.filter(s => s.done).length
   const canSnooze   = !task.recurring && task.status !== 'Terminé'
@@ -728,7 +768,7 @@ function TaskRow({ task, cycleStatus, del, toAdjust, onComplete, onEdit, isEditi
                   { label: 'Dans 3 jours', days: 3 },
                   { label: 'Semaine prochaine', days: 7 },
                 ].map(opt => (
-                  <button key={opt.days} onClick={() => onSnooze(opt.days)} type="button"
+                  <button key={opt.days} onClick={() => onSnooze?.(opt.days)} type="button"
                     style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '6px 10px',
                       borderRadius: 6, fontSize: 12, textAlign: 'left', color: 'var(--text)',
                       fontFamily: 'DM Sans' }}>
@@ -757,9 +797,9 @@ function TaskRow({ task, cycleStatus, del, toAdjust, onComplete, onEdit, isEditi
             <label key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer',
               fontSize: 13, color: s.done ? 'var(--muted)' : 'var(--text)',
               textDecoration: s.done ? 'line-through' : 'none' }}>
-              <input type="checkbox" checked={s.done} onChange={() => onToggleSubtask(s.id)}
+              <input type="checkbox" checked={s.done} onChange={() => onToggleSubtask?.(s.id)}
                 style={{ width: 'auto', accentColor: '#5B8DBF' }} />
-              {s.title}
+              {s.text}
             </label>
           ))}
         </div>

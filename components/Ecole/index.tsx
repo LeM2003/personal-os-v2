@@ -1,4 +1,3 @@
-// @ts-nocheck — migration TypeScript en attente
 "use client"
 
 import { useState, useMemo } from 'react'
@@ -9,6 +8,9 @@ import Notes from './Grades'
 import TextImport from '../shared/TextImport'
 import PageHeader from '../shared/PageHeader'
 import { parseSchedule } from '../../utils/scheduleParser'
+import type { Task, Homework, Exam, UserProfile } from '@/types'
+
+type ProfileWithImport = UserProfile & { pendingImport?: string }
 
 export default function Ecole() {
   const { courses, setCourses, devoirs, setDevoirs, examens, setExamens, tasks, setTasks, profile, setProfile } = useApp()
@@ -16,23 +18,24 @@ export default function Ecole() {
   const [showImport, setShowImport] = useState(false)
   const [bannerDismissed, setBannerDismissed] = useState(false)
 
-  const pending = profile?.pendingImport?.trim() || ''
+  const profileExt = profile as ProfileWithImport | null
+  const pending = profileExt?.pendingImport?.trim() || ''
   const parsed = useMemo(() => pending ? parseSchedule(pending) : [], [pending])
   const showBanner = !bannerDismissed && pending.length > 0
 
   const confirmImport = () => {
     if (parsed.length > 0) setCourses(p => [...p, ...parsed])
-    setProfile(p => ({ ...(p || {}), pendingImport: '' }))
+    setProfile(p => ({ ...((p as ProfileWithImport) || ({} as ProfileWithImport)), pendingImport: '' }) as UserProfile)
     setBannerDismissed(true)
     setSub('emploi')
   }
 
   const ignoreImport = () => {
-    setProfile(p => ({ ...(p || {}), pendingImport: '' }))
+    setProfile(p => ({ ...((p as ProfileWithImport) || ({} as ProfileWithImport)), pendingImport: '' }) as UserProfile)
     setBannerDismissed(true)
   }
 
-  const handleImport = ({ taches, devoirs: newDevoirs, examens: newExamens }) => {
+  const handleImport = ({ taches, devoirs: newDevoirs, examens: newExamens }: { taches: Task[]; devoirs: Homework[]; examens: Exam[] }) => {
     if (taches.length > 0 && setTasks) setTasks(p => [...p, ...taches])
     if (newDevoirs.length > 0) setDevoirs(p => [...p, ...newDevoirs])
     if (newExamens.length > 0) setExamens(p => [...p, ...newExamens])

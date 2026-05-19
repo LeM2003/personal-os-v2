@@ -10,7 +10,7 @@ interface BackupModalProps {
 
 export default function BackupModal({ importRef, onExport, onImport, onOpenCalendar, onClose }: BackupModalProps) {
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay" role="dialog" aria-modal="true" onClick={onClose}>
       <div className="modal-box" onClick={e => e.stopPropagation()}>
         <h3 style={{ fontSize: 18, marginBottom: 8, color: '#5B8DBF' }}>💾 Tes données, en sécurité</h3>
         <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 20, lineHeight: 1.6 }}>

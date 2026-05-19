@@ -1,7 +1,7 @@
 "use client"
 
 import { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react'
-import type { UserProfile, StreakData } from '@/types'
+import type { UserProfile, StreakData, Task, Project, Expense, Exam, Homework } from '@/types'
 import { useLS } from '@/hooks/useLocalStorage'
 import { startNotificationLoop, stopNotificationLoop } from '@/utils/notifications'
 
@@ -112,25 +112,28 @@ function AppCoreProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  // Notifs au démarrage : examens & devoirs du jour/lendemain
+  // Notifs au demarrage : examens & devoirs du jour/lendemain
+  const notifStartupRef = useRef(false)
   useEffect(() => {
     if (!notifEnabled || !notifSupported || Notification.permission !== 'granted') return
+    if (notifStartupRef.current) return
+    notifStartupRef.current = true
     const today = new Date().toISOString().split('T')[0]
     const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1)
     const tomorrowISO = tomorrow.toISOString().split('T')[0]
     examens.filter(e => e.date === today).forEach(e =>
-      notify(`🎓 Examen AUJOURD'HUI`, `${e.matiere} à ${e.heure}${e.salle ? ` — ${e.salle}` : ''}`)
+      notify(`Examen AUJOURD'HUI`, `${e.matiere} a ${e.heure}${e.salle ? ` — ${e.salle}` : ''}`)
     )
     examens.filter(e => e.date === tomorrowISO).forEach(e =>
-      notify(`🎓 Examen DEMAIN`, `${e.matiere} à ${e.heure} — Penses à réviser ce soir !`)
+      notify(`Examen DEMAIN`, `${e.matiere} a ${e.heure} — Penses a reviser ce soir !`)
     )
     devoirs.filter(d => d.dateRendu === today && d.statut !== 'Rendu').forEach(d =>
-      notify(`📋 Devoir à rendre AUJOURD'HUI`, `${d.matiere}${d.description ? ` — ${d.description}` : ''}`)
+      notify(`Devoir a rendre AUJOURD'HUI`, `${d.matiere}${d.description ? ` — ${d.description}` : ''}`)
     )
     devoirs.filter(d => d.dateRendu === tomorrowISO && d.statut !== 'Rendu').forEach(d =>
-      notify(`📋 Devoir à rendre DEMAIN`, `${d.matiere}`)
+      notify(`Devoir a rendre DEMAIN`, `${d.matiere}`)
     )
-  }, []) // eslint-disable-line
+  }, [notifEnabled, examens, devoirs, notify, notifSupported])
 
   // Notification toutes les 60s pour les tâches récurrentes
   const tasksRef = useRef(tasks)
@@ -207,20 +210,31 @@ function AppCoreProvider({ children }: { children: React.ReactNode }) {
         for (const k of arrays) {
           if (data[k] && !Array.isArray(data[k])) { alert(`Fichier corrompu — "${k}" n'est pas un tableau.`); return }
         }
-        if (data.profile)       setProfile(data.profile)
-        if (data.tasks)         setTasks(data.tasks)
-        if (data.projects)      setProjects(data.projects)
-        if (data.expenses)      setExpenses(data.expenses)
+        const validateItems = <T extends { id?: unknown }>(items: unknown[], requiredFields: (keyof T)[]): items is T[] => {
+          return items.every(item => {
+            if (typeof item !== 'object' || item === null) return false
+            return requiredFields.every(f => f in item)
+          })
+        }
+        if (data.tasks && !validateItems<Task>(data.tasks, ['id', 'name', 'status'])) { alert('Fichier corrompu — certaines tâches sont invalides.'); return }
+        if (data.projects && !validateItems<Project>(data.projects, ['id', 'name'])) { alert('Fichier corrompu — certains projets sont invalides.'); return }
+        if (data.expenses && !validateItems<Expense>(data.expenses, ['id', 'amount', 'date'])) { alert('Fichier corrompu — certaines dépenses sont invalides.'); return }
+        if (data.examens && !validateItems<Exam>(data.examens, ['id', 'matiere', 'date', 'heure'])) { alert('Fichier corrompu — certains examens sont invalides.'); return }
+        if (data.devoirs && !validateItems<Homework>(data.devoirs, ['id', 'matiere', 'dateRendu', 'statut'])) { alert('Fichier corrompu — certains devoirs sont invalides.'); return }
+        if (data.profile) setProfile(data.profile)
+        if (data.tasks) setTasks(data.tasks)
+        if (data.projects) setProjects(data.projects)
+        if (data.expenses) setExpenses(data.expenses)
         if (data.subscriptions) setSubscriptions(data.subscriptions)
-        if (data.debts)         setDebts(data.debts)
-        if (data.savings)       setSavings(data.savings)
-        if (data.objectif)      setObjectif(data.objectif)
-        if (data.adjustments)   setAdjustments(data.adjustments)
-        if (data.courses)       setCourses(data.courses)
-        if (data.devoirs)       setDevoirs(data.devoirs)
-        if (data.examens)       setExamens(data.examens)
-        if (data.notes)         setNotes(data.notes)
-        if (data.subjects)      setSubjects(data.subjects)
+        if (data.debts) setDebts(data.debts)
+        if (data.savings) setSavings(data.savings)
+        if (data.objectif) setObjectif(data.objectif)
+        if (data.adjustments) setAdjustments(data.adjustments)
+        if (data.courses) setCourses(data.courses)
+        if (data.devoirs) setDevoirs(data.devoirs)
+        if (data.examens) setExamens(data.examens)
+        if (data.notes) setNotes(data.notes)
+        if (data.subjects) setSubjects(data.subjects)
         if (data.budgets && typeof data.budgets === 'object') setBudgets(data.budgets)
         setBackupModal(false)
         alert('✅ Données restaurées avec succès !')

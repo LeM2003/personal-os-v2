@@ -1,17 +1,17 @@
-// @ts-nocheck — migration TypeScript en attente
 "use client"
 
 import { useRef, useState } from 'react'
 import { todayISO, fmtDate, daysUntil, todayDay } from '../../utils/dates'
+import type { Task, Expense, Subscription, Project, Homework, Exam, UserProfile, StreakData } from '@/types'
 
-function isoMinusDays(n) {
+function isoMinusDays(n: number) {
   const d = new Date(); d.setDate(d.getDate() - n)
   return d.toISOString().split('T')[0]
 }
 
 const JOURS_FR = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi']
 
-function SmallRing({ pct, size = 56, strokeWidth = 5, color }) {
+function SmallRing({ pct, size = 56, strokeWidth = 5, color }: { pct: number; size?: number; strokeWidth?: number; color: string }) {
   const r = (size - strokeWidth * 2) / 2
   const circ = 2 * Math.PI * r
   const dash = (pct / 100) * circ
@@ -28,7 +28,7 @@ function SmallRing({ pct, size = 56, strokeWidth = 5, color }) {
   )
 }
 
-function StatBox({ label, value, sub, color = '#5B8DBF' }) {
+function StatBox({ label, value, sub, color = '#5B8DBF' }: { label: string; value: React.ReactNode; sub?: string; color?: string }) {
   return (
     <div style={{ background: 'var(--surface-deep)', borderRadius: 10, padding: '12px 14px', flex: 1, minWidth: 0 }}>
       <p style={{ fontSize: 11, color: '#6b7280', margin: 0, marginBottom: 4 }}>{label}</p>
@@ -38,7 +38,19 @@ function StatBox({ label, value, sub, color = '#5B8DBF' }) {
   )
 }
 
-export default function WeeklyReport({ tasks, expenses, subscriptions, projects, devoirs, examens, profile, streakData, onClose }) {
+interface WeeklyReportProps {
+  tasks: Task[]
+  expenses: Expense[]
+  subscriptions: Subscription[]
+  projects: Project[]
+  devoirs: Homework[]
+  examens: Exam[]
+  profile: UserProfile | null
+  streakData: StreakData
+  onClose: () => void
+}
+
+export default function WeeklyReport({ tasks, expenses, subscriptions, projects, devoirs, examens, profile, streakData, onClose }: WeeklyReportProps) {
   const reportRef = useRef(null)
   const [exporting, setExporting] = useState(false)
   const [aiSummary, setAiSummary] = useState('')
@@ -80,13 +92,13 @@ export default function WeeklyReport({ tasks, expenses, subscriptions, projects,
   const weekExpenses = expenses.filter(e => e.date >= weekStart && e.date <= today)
   const weekTotal = weekExpenses.reduce((s, e) => s + e.amount, 0)
   const topCats = Object.entries(
-    weekExpenses.reduce((acc, e) => { acc[e.category] = (acc[e.category] || 0) + e.amount; return acc }, {})
+    weekExpenses.reduce<Record<string, number>>((acc, e) => { const key = e.category ?? 'Autre'; acc[key] = (acc[key] || 0) + e.amount; return acc }, {})
   ).sort((a, b) => b[1] - a[1]).slice(0, 3)
 
   // School
   const devoirsRendus = devoirs.filter(d => d.statut === 'Rendu').length
   const devoirsRate = devoirs.length > 0 ? Math.round((devoirsRendus / devoirs.length) * 100) : 0
-  const nextExam = [...examens].filter(e => daysUntil(e.date) >= 0).sort((a, b) => new Date(a.date) - new Date(b.date))[0]
+  const nextExam = [...examens].filter(e => daysUntil(e.date) >= 0).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0]
   const revisionRate = (() => {
     const total = examens.reduce((s, e) => s + (e.totalChapitres || 0), 0)
     const done = examens.reduce((s, e) => s + (e.chapitresRevises || 0), 0)
@@ -112,31 +124,24 @@ export default function WeeklyReport({ tasks, expenses, subscriptions, projects,
     if (!reportRef.current) return
     setExporting(true)
     try {
-      const { default: html2canvas } = await import('html2canvas')
-      const canvas = await html2canvas(reportRef.current, {
-        backgroundColor: '#0B1220',
-        scale: 2,
-        useCORS: true,
-        logging: false,
-      })
-      const url = canvas.toDataURL('image/png')
-
-      // Try native share (mobile)
-      if (navigator.share && navigator.canShare) {
-        const blob = await (await fetch(url)).blob()
-        const file = new File([blob], `personal-os-semaine-${today}.png`, { type: 'image/png' })
-        if (navigator.canShare({ files: [file] })) {
-          await navigator.share({ files: [file], title: 'Mon rapport hebdo — Personal OS' })
+      // Native share API (mobile) — pas besoin de html2canvas
+      if (navigator.share) {
+        try {
+          const text = `Mon rapport hebdo — Personal OS\nScore: ${globalScore}/100\nTâches: ${totalDone}/${totalCreated}\nHabitudes: ${habitsPct}%\nScore global: ${globalScore}/100`
+          await navigator.share({ title: 'Mon rapport hebdo — Personal OS', text })
           setExporting(false)
           return
-        }
+        } catch { /* user cancelled or not supported with files */ }
       }
 
-      // Fallback: download
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `personal-os-semaine-${today}.png`
-      a.click()
+      // Fallback: copier le rapport dans le presse-papier
+      const text = `📊 Rapport hebdo — Personal OS\n\n🏆 Score: ${globalScore}/100\n✅ Tâches: ${totalDone}/${totalCreated}\n🔥 Habitudes: ${habitsPct}%\n📚 Devoirs: ${devoirsRate}%\n📝 Révisions: ${revisionRate}%`
+      try {
+        await navigator.clipboard.writeText(text)
+        alert('Rapport copié dans le presse-papier !')
+      } catch {
+        alert('Partage non disponible sur ce navigateur.')
+      }
     } catch (e) {
       console.error('Export error:', e)
     } finally {
@@ -167,16 +172,16 @@ export default function WeeklyReport({ tasks, expenses, subscriptions, projects,
       if (data.error) throw new Error(data.error)
       setAiSummary(data.content || '')
     } catch (e) {
-      setAiError('Erreur IA — ' + e.message)
+      setAiError('Erreur IA — ' + (e instanceof Error ? e.message : 'inconnu'))
     } finally {
       setLoadingAI(false)
     }
   }
 
-  const fmtFCFA = (n) => n.toLocaleString('fr-FR') + ' F'
+  const fmtFCFA = (n: number) => n.toLocaleString('fr-FR') + ' F'
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay" role="dialog" aria-modal="true" onClick={onClose}>
       <div onClick={e => e.stopPropagation()}
         style={{ maxWidth: 480, maxHeight: '90vh', overflow: 'auto', margin: '20px auto' }}>
 
@@ -359,7 +364,7 @@ export default function WeeklyReport({ tasks, expenses, subscriptions, projects,
           <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
             <button className="btn-gold" onClick={exportPNG} disabled={exporting}
               style={{ fontSize: 14, padding: '10px 24px', opacity: exporting ? 0.6 : 1 }}>
-              {exporting ? '⏳ Export...' : '📤 Télécharger PNG'}
+              {exporting ? '⏳ Export...' : '📤 Exporter / Partager'}
             </button>
             <button className="btn-ghost" onClick={onClose} style={{ fontSize: 14, padding: '10px 20px' }}>
               Fermer

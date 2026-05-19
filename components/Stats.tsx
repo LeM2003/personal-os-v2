@@ -1,4 +1,3 @@
-// @ts-nocheck — migration TypeScript en attente
 "use client"
 
 import { useState } from 'react'
@@ -10,24 +9,25 @@ import WeeklyReport from './shared/WeeklyReport'
 import PageHeader from './shared/PageHeader'
 import AbstractMark from './shared/AbstractMark'
 import { CheckSquare, Flame, Wallet, Target, GraduationCap, Rocket } from 'lucide-react'
+import type { Task } from '@/types'
 
 const TITLE_ICON = { display: 'inline', verticalAlign: -2, marginRight: 6 }
 
 const JOURS_FR = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi']
 
-function isoMinusDays(n, offset = 0) {
+function isoMinusDays(n: number, offset = 0) {
   const d = new Date(); d.setDate(d.getDate() - n + offset * 7)
   return d.toISOString().split('T')[0]
 }
 
-function startOfWeekMinus(n, offset = 0) {
+function startOfWeekMinus(n: number, offset = 0) {
   const d = new Date()
   const day = d.getDay() === 0 ? 6 : d.getDay() - 1
   d.setDate(d.getDate() - day - (n + offset) * 7)
   return d.toISOString().split('T')[0]
 }
 
-function MiniBar({ value, max, color, label, sublabel }) {
+function MiniBar({ value, max, color, label, sublabel }: { value: number; max: number; color: string; label: string; sublabel?: string }) {
   const pct = max > 0 ? Math.round((value / max) * 100) : 0
   return (
     <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center' }}>
@@ -42,7 +42,7 @@ function MiniBar({ value, max, color, label, sublabel }) {
   )
 }
 
-function ScoreRing({ score, size = 90 }) {
+function ScoreRing({ score, size = 90 }: { score: number; size?: number }) {
   const r = (size - 14) / 2
   const circ = 2 * Math.PI * r
   const dash = (score / 100) * circ
@@ -64,8 +64,11 @@ function ScoreRing({ score, size = 90 }) {
 const MONTHS_FR = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc']
 const DAYS_FR   = ['D','L','M','M','J','V','S']
 
-function HabitGrid({ tasks }) {
-  const [hovered, setHovered] = useState(null)
+interface HabitDay { iso: string; date: Date; done: number }
+interface MonthLabel { wi: number; label: string }
+
+function HabitGrid({ tasks }: { tasks: Task[] }) {
+  const [hovered, setHovered] = useState<{ iso: string; done: number } | null>(null)
 
   // Construire les 91 derniers jours (13 semaines)
   const today = new Date()
@@ -76,7 +79,7 @@ function HabitGrid({ tasks }) {
   const gridStart = new Date(today)
   gridStart.setDate(today.getDate() - (90 + startDow))
 
-  const days = []
+  const days: HabitDay[] = []
   for (let i = 0; i <= 90 + startDow; i++) {
     const d = new Date(gridStart)
     d.setDate(gridStart.getDate() + i)
@@ -90,7 +93,7 @@ function HabitGrid({ tasks }) {
   }
 
   // Grouper par semaine (colonnes)
-  const weeks = []
+  const weeks: HabitDay[][] = []
   for (let i = 0; i < days.length; i += 7) {
     weeks.push(days.slice(i, i + 7))
   }
@@ -108,7 +111,7 @@ function HabitGrid({ tasks }) {
     return s
   })()
 
-  const cellColor = (count) => {
+  const cellColor = (count: number) => {
     if (count === 0) return 'rgba(56,189,248,.07)'
     if (count === 1) return 'rgba(56,189,248,.3)'
     if (count <= 3) return 'rgba(56,189,248,.6)'
@@ -116,7 +119,7 @@ function HabitGrid({ tasks }) {
   }
 
   // Labels mois
-  const monthLabels = []
+  const monthLabels: MonthLabel[] = []
   weeks.forEach((week, wi) => {
     const first = week.find(d => d)
     if (!first) return
@@ -307,8 +310,9 @@ export default function Stats() {
   const weekTrend    = weeks[2].total > 0 ? Math.round(((weeks[3].total - weeks[2].total) / weeks[2].total) * 100) : null
   const monthStart   = (() => { const d = new Date(); d.setDate(1); return d.toISOString().split('T')[0] })()
   const catTotals    = Object.entries(
-    expenses.filter(e => e.date >= monthStart).reduce((acc, e) => {
-      acc[e.category] = (acc[e.category] || 0) + e.amount; return acc
+    expenses.filter(e => e.date >= monthStart).reduce<Record<string, number>>((acc, e) => {
+      const key = e.category ?? 'Autre'
+      acc[key] = (acc[key] || 0) + e.amount; return acc
     }, {})
   ).sort((a, b) => b[1] - a[1])
   const maxCat = catTotals[0]?.[1] || 1
@@ -317,7 +321,7 @@ export default function Stats() {
   const totalTasks       = tasks.length
   const totalDone        = tasks.filter(t => t.status === 'Terminé').length
   const monthlySubsCost  = subscriptions.reduce((s, sub) => {
-    const cycles = { Mensuel: 1, Hebdomadaire: 4.33, Trimestriel: 1 / 3, Annuel: 1 / 12 }
+    const cycles: Record<string, number> = { Mensuel: 1, Hebdomadaire: 4.33, Trimestriel: 1 / 3, Annuel: 1 / 12 }
     return s + (sub.amount || 0) * (cycles[sub.cycle] || 1)
   }, 0)
 
@@ -694,7 +698,9 @@ export default function Stats() {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {examensAVenir.slice(0, 3).map(e => {
                       const j      = daysUntil(e.date)
-                      const revPct = e.totalChapitres > 0 ? Math.round((e.chapitresRevises / e.totalChapitres) * 100) : 0
+                      const total  = e.totalChapitres ?? 0
+                      const revised = e.chapitresRevises ?? 0
+                      const revPct = total > 0 ? Math.round((revised / total) * 100) : 0
                       return (
                         <div key={e.id} style={{ background: 'var(--surface-deep)', borderRadius: 8, padding: '10px 12px' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
@@ -704,7 +710,7 @@ export default function Stats() {
                               J-{j}
                             </span>
                           </div>
-                          {e.totalChapitres > 0 && (
+                          {total > 0 && (
                             <>
                               <div style={{ display: 'flex', justifyContent: 'space-between',
                                 fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>

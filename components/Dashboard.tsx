@@ -1,4 +1,3 @@
-// @ts-nocheck — migration TypeScript en attente
 "use client"
 
 import { useEffect } from 'react'
@@ -7,11 +6,15 @@ import { useLS } from '../hooks/useLocalStorage'
 import { todayISO, todayLabel, todayDay, greeting, fmtDate, daysUntil } from '../utils/dates'
 import { PRIORITY_ORDER, PRIORITY_COLOR, CAT_COLORS } from '../utils/constants'
 import { computeNextRenewal } from '../utils/subscriptions'
+import type { Task, Exam, Homework, Subscription, AlertItem } from '@/types'
 import StatCard from './shared/StatCard'
 import MorningBriefing from './shared/MorningBriefing'
 import EmptyState from './shared/EmptyState'
 import SegmentedControl from './shared/SegmentedControl'
-import AbstractMark from './shared/AbstractMark'
+import AnimatedCounter from './shared/AnimatedCounter'
+import StaggerList from './shared/StaggerList'
+import TiltCard from './shared/TiltCard'
+import GlowButton from './shared/GlowButton'
 import {
   CloudSun, Cloud, CloudLightning, Moon as MoonIcon,
   Flame, TrendingUp, Target, ClipboardList, CheckCircle2,
@@ -19,16 +22,16 @@ import {
   CreditCard, MapPin, Clock, Circle
 } from 'lucide-react'
 
-function isoMinusDays(n) {
+function isoMinusDays(n: number): string {
   const d = new Date(); d.setDate(d.getDate() - n)
   return d.toISOString().split('T')[0]
 }
 
 export default function Dashboard() {
   const { tasks, objectif, setObjectif, expenses, subscriptions,
-    devoirs, examens, adjustments, courses, setTab, profile, streakData, setStreakData,
-    budgets, setBudgets, projects } = useApp()
-  const [view, setView] = useLS('pos_dashboard_view', 'today')
+  devoirs, examens, adjustments, courses, setTab, profile, streakData, setStreakData,
+  budgets, projects, startPomo } = useApp()
+  const [view, setView] = useLS<string>('pos_dashboard_view', 'today')
 
   const now     = todayISO()
   const dayName = todayDay()
@@ -40,12 +43,12 @@ export default function Dashboard() {
   const createdToday   = tasks.filter(t => t.createdAt === now)
   const completedToday = createdToday.filter(t => t.status === 'Terminé').length
   const todayExpTotal  = expenses.filter(e => e.date === now).reduce((s, e) => s + e.amount, 0)
-  const monthKey       = now.slice(0, 7) // YYYY-MM
-  const monthExpTotal  = expenses.filter(e => (e.date || '').startsWith(monthKey)).reduce((s, e) => s + e.amount, 0)
-  const monthBudget    = budgets?.monthly || 0
+  const monthKey = now.slice(0, 7) // YYYY-MM
+  const monthExpTotal = expenses.filter(e => (e.date || '').startsWith(monthKey)).reduce((s, e) => s + e.amount, 0)
+  const monthBudget = Object.values(budgets || {}).reduce((s, v) => s + (typeof v === 'number' ? v : 0), 0)
   const budgetPct      = monthBudget > 0 ? Math.min(100, Math.round((monthExpTotal / monthBudget) * 100)) : 0
   const budgetRemaining= monthBudget - monthExpTotal
-  const nextExam       = [...examens].filter(e => daysUntil(e.date) >= 0).sort((a, b) => new Date(a.date) - new Date(b.date))[0]
+  const nextExam       = [...examens].filter(e => daysUntil(e.date) >= 0).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0]
 
   // Habitudes du jour
   const todayHabits = tasks.filter(t => {
@@ -58,7 +61,7 @@ export default function Dashboard() {
   const habitsCompleted = todayHabits.filter(t => t.status === 'Terminé' && t.lastCompletedAt === now).length
   const habitsPct       = todayHabits.length > 0 ? Math.round((habitsCompleted / todayHabits.length) * 100) : 0
 
-  const top3         = [...tasks].filter(t => t.status !== 'Terminé').sort((a, b) => PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority]).slice(0, 3)
+  const top3 = [...tasks].filter(t => t.status !== 'Terminé').sort((a, b) => (PRIORITY_ORDER[a.priority ?? ''] ?? 99) - (PRIORITY_ORDER[b.priority ?? ''] ?? 99)).slice(0, 3)
   // Focus du jour : la tâche unique à mettre en avant (non-habitude, non-terminée,
   // priorise deadline aujourd'hui puis haute priorité)
   const focus = [...tasks]
@@ -67,7 +70,7 @@ export default function Dashboard() {
       const aDue = a.deadline === now ? 0 : 1
       const bDue = b.deadline === now ? 0 : 1
       if (aDue !== bDue) return aDue - bDue
-      return PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority]
+      return (PRIORITY_ORDER[a.priority ?? ''] ?? 99) - (PRIORITY_ORDER[b.priority ?? ''] ?? 99)
     })[0]
   const todayCourses = courses
     .filter(c => c.jour === dayName)
@@ -94,7 +97,7 @@ export default function Dashboard() {
   const upcomingSubs = subscriptions
     .map(s => ({ ...s, _next: s.nextRenewal || computeNextRenewal(s.startDate || now, s.cycle || 'Mensuel') }))
     .filter(s => { const d = daysUntil(s._next); return d >= 0 && d <= 30 })
-    .sort((a, b) => new Date(a._next) - new Date(b._next))
+    .sort((a, b) => new Date(a._next).getTime() - new Date(b._next).getTime())
 
   /* ── Météo de la journée ── */
   const tasksDueToday   = tasks.filter(t => t.deadline === now && t.status !== 'Terminé' && !t.recurring).length
@@ -135,7 +138,7 @@ export default function Dashboard() {
   const streak = streakData?.count || 0
 
   /* ── Alertes ── */
-  const alerts = []
+  const alerts: AlertItem[] = []
   examens.filter(e => { const d = daysUntil(e.date); return d >= 0 && d <= 7 })
     .forEach(e => {
       const d = daysUntil(e.date)
@@ -213,20 +216,20 @@ export default function Dashboard() {
 
       {/* ── Focus du jour — hero unique ── */}
       {focus && (
+        <TiltCard maxTilt={5} scale={1.015} glareEnabled={false} style={{
+          marginBottom: 20, borderRadius: 20,
+        }}>
         <div
           onClick={() => setTab('taches')}
           style={{
-            marginBottom: 20, cursor: 'pointer',
+            cursor: 'pointer',
             background: 'linear-gradient(135deg, rgba(56,189,248,.08) 0%, rgba(129,140,248,.06) 50%, rgba(245,158,11,.04) 100%)',
             border: '1px solid rgba(56,189,248,.2)',
             borderRadius: 20,
             padding: '22px 24px',
             position: 'relative', overflow: 'hidden',
-            transition: 'transform .2s, box-shadow .2s, border-color .2s',
             boxShadow: '0 4px 24px rgba(0,0,0,.25), 0 0 40px rgba(56,189,248,.04)',
           }}
-          onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 8px 32px rgba(0,0,0,.3), 0 0 40px rgba(56,189,248,.08)' }}
-          onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = '0 4px 24px rgba(0,0,0,.25), 0 0 40px rgba(56,189,248,.04)' }}
         >
           {/* Top gradient line */}
           <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: 'linear-gradient(90deg, var(--accent-1), var(--accent-2), var(--accent-3))' }} />
@@ -243,8 +246,11 @@ export default function Dashboard() {
               : focus.deadline ? `📅 Échéance ${fmtDate(focus.deadline)}`
               : `🎯 Priorité ${focus.priority}`}
           </p>
-          <button className="btn-gold" style={{ fontSize: 13 }}>Commencer →</button>
+          <div onClick={(e) => e.stopPropagation()} style={{ display: 'inline-block' }}>
+            <GlowButton variant="primary" size="sm" onClick={() => startPomo(focus)}>Commencer →</GlowButton>
+          </div>
         </div>
+        </TiltCard>
       )}
 
       {/* ── Bannière Météo / Streak / Score ── */}
@@ -266,7 +272,7 @@ export default function Dashboard() {
           </div>
           <div>
             <p style={{ fontSize: 'clamp(11px,2.5vw,14px)', fontWeight: 700, margin: 0, lineHeight: 1.2, color: streak >= 7 ? '#4ade80' : streak >= 3 ? '#fb923c' : 'var(--text)' }}>
-              {streak}j
+              <AnimatedCounter value={streak} suffix="j" />
             </p>
             <p style={{ fontSize: 9, color: 'var(--muted)', margin: '2px 0 0', textTransform: 'uppercase', letterSpacing: .5 }}>Streak</p>
           </div>
@@ -289,7 +295,7 @@ export default function Dashboard() {
                 </linearGradient>
               </defs>
             </svg>
-            <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, color: 'var(--accent-1)' }}>{weekScore}%</span>
+            <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, color: 'var(--accent-1)' }}><AnimatedCounter value={weekScore} suffix="%" /></span>
           </div>
           <div>
             <p style={{ fontSize: 'clamp(11px,2.5vw,14px)', fontWeight: 700, margin: 0, lineHeight: 1.2, background: 'linear-gradient(135deg,var(--accent-1),var(--accent-2))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
@@ -316,58 +322,51 @@ export default function Dashboard() {
 
       {/* ── KPI Cards ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 24 }} className="grid-kpi">
-        <StatCard icon={<ClipboardList size={24} color="#5B8DBF" />} value={`${createdToday.length}`} label="Tâches du jour" color="#5B8DBF" />
-        <StatCard icon={<CheckCircle2 size={24} color="#4ade80" />} value={`${completedToday}`} label="Terminées" color="#4ade80" />
-        <StatCard icon={<Receipt size={24} color="#60a5fa" />} value={`${todayExpTotal.toLocaleString('fr-FR')} F`} label="Dépensé aujourd'hui" color="#60a5fa" />
+        <StatCard icon={<ClipboardList size={24} color="#5B8DBF" />} value={<AnimatedCounter value={createdToday.length} />} label="Tâches du jour" color="#5B8DBF" />
+        <StatCard icon={<CheckCircle2 size={24} color="#4ade80" />} value={<AnimatedCounter value={completedToday} />} label="Terminées" color="#4ade80" />
+        <StatCard icon={<Receipt size={24} color="#60a5fa" />} value={<AnimatedCounter value={todayExpTotal} suffix=" F" />} label="Dépensé aujourd'hui" color="#60a5fa" />
         <StatCard icon={nextExam ? <GraduationCap size={24} color="#f87171" /> : <BookOpen size={24} color="#9ca3af" />}
           value={nextExam ? `J-${daysUntil(nextExam.date)}` : '—'}
           label={nextExam ? nextExam.matiere : 'Pas d\'examen'} color={nextExam ? '#f87171' : '#9ca3af'} />
       </div>
 
-      {/* ── Budget du mois ── */}
-      <div className="card" style={{ padding: '16px 20px', marginBottom: 24 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, gap: 10, flexWrap: 'wrap' }}>
-          <p style={{ fontFamily: 'Fraunces', fontWeight: 700, fontSize: 13, textTransform: 'uppercase', letterSpacing: .8, margin: 0 }}>
-            <CreditCard size={13} style={{ display: 'inline', verticalAlign: -2, marginRight: 4 }} /> Budget du mois
-          </p>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 11, color: 'var(--muted)' }}>Budget :</span>
-            <input type="number" value={monthBudget || ''}
-              onChange={e => setBudgets(b => ({ ...b, monthly: e.target.value ? +e.target.value : 0 }))}
-              placeholder="0" min={0} step={1000}
-              style={{ width: 110, padding: '4px 8px', fontSize: 12 }} />
-            <span style={{ fontSize: 11, color: 'var(--muted)' }}>F</span>
-          </div>
-        </div>
-        {monthBudget > 0 ? (
-          <>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6, gap: 8, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 20, fontWeight: 700, fontFamily: 'Fraunces',
-                color: budgetPct >= 100 ? '#f87171' : budgetPct >= 80 ? '#fb923c' : '#4ade80' }}>
-                {monthExpTotal.toLocaleString('fr-FR')} F
-              </span>
-              <span style={{ fontSize: 12, color: 'var(--muted)' }}>
-                sur {monthBudget.toLocaleString('fr-FR')} F ({budgetPct}%)
-              </span>
-            </div>
-            <div className="progress-track" style={{ marginBottom: 6 }}>
-              <div className="progress-fill" style={{
-                width: `${budgetPct}%`,
-                background: budgetPct >= 100 ? '#f87171' : budgetPct >= 80 ? '#fb923c' : '#4ade80'
-              }} />
-            </div>
-            <p style={{ fontSize: 12, color: 'var(--muted)', margin: 0 }}>
-              {budgetRemaining >= 0
-                ? <>Il te reste <strong style={{ color: 'var(--text)' }}>{budgetRemaining.toLocaleString('fr-FR')} F</strong> ce mois</>
-                : <>Tu as dépassé de <strong style={{ color: '#f87171' }}>{Math.abs(budgetRemaining).toLocaleString('fr-FR')} F</strong></>}
-            </p>
-          </>
-        ) : (
-          <p style={{ fontSize: 12, color: 'var(--muted)', margin: 0 }}>
-            Fixe un budget mensuel pour suivre tes dépenses. Total ce mois : <strong style={{ color: 'var(--text)' }}>{monthExpTotal.toLocaleString('fr-FR')} F</strong>
-          </p>
-        )}
-      </div>
+  {/* ── Budget du mois ── */}
+  <div className="card" style={{ padding: '16px 20px', marginBottom: 24, cursor: 'pointer' }} onClick={() => setTab('finances')}>
+  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, gap: 10, flexWrap: 'wrap' }}>
+  <p style={{ fontFamily: 'Fraunces', fontWeight: 700, fontSize: 13, textTransform: 'uppercase', letterSpacing: .8, margin: 0 }}>
+  <CreditCard size={13} style={{ display: 'inline', verticalAlign: -2, marginRight: 4 }} /> Budget du mois
+  </p>
+  <span style={{ fontSize: 11, color: 'var(--accent-1)', fontWeight: 600 }}>Configurer →</span>
+  </div>
+  {monthBudget > 0 ? (
+  <>
+  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6, gap: 8, flexWrap: 'wrap' }}>
+  <span style={{ fontSize: 20, fontWeight: 700, fontFamily: 'Fraunces',
+  color: budgetPct >= 100 ? '#f87171' : budgetPct >= 80 ? '#fb923c' : '#4ade80' }}>
+  <AnimatedCounter value={monthExpTotal} suffix=" F" />
+  </span>
+  <span style={{ fontSize: 12, color: 'var(--muted)' }}>
+  sur {monthBudget.toLocaleString('fr-FR')} F (<AnimatedCounter value={budgetPct} suffix="%" />)
+  </span>
+  </div>
+  <div className="progress-track" style={{ marginBottom: 6 }}>
+  <div className="progress-fill" style={{
+  width: `${budgetPct}%`,
+  background: budgetPct >= 100 ? '#f87171' : budgetPct >= 80 ? '#fb923c' : '#4ade80'
+  }} />
+  </div>
+  <p style={{ fontSize: 12, color: 'var(--muted)', margin: 0 }}>
+  {budgetRemaining >= 0
+  ? <>Il te reste <strong style={{ color: 'var(--text)' }}>{budgetRemaining.toLocaleString('fr-FR')} F</strong> ce mois</>
+  : <>Tu as depasse de <strong style={{ color: '#f87171' }}>{Math.abs(budgetRemaining).toLocaleString('fr-FR')} F</strong></>}
+  </p>
+  </>
+  ) : (
+  <p style={{ fontSize: 12, color: 'var(--muted)', margin: 0 }}>
+  Fixe tes budgets par categorie dans l'onglet Finances. Total ce mois : <strong style={{ color: 'var(--text)' }}>{monthExpTotal.toLocaleString('fr-FR')} F</strong>
+  </p>
+  )}
+  </div>
 
       {/* ── Alertes ── */}
       {alerts.length > 0 && (
@@ -393,22 +392,24 @@ export default function Dashboard() {
           </div>
           {todayHabits.length === 0
             ? <EmptyState mark="bars" tone="muted" title="Pas d'habitudes prévues. Repos." />
-            : todayHabits.map(t => (
-              <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0',
-                borderBottom: '1px solid var(--border)' }}>
-                <span style={{ display: 'inline-flex' }}>
-                  {t.status === 'Terminé' && t.lastCompletedAt === now
-                    ? <CheckCircle2 size={16} style={{ color: '#4ade80' }} />
-                    : <Circle size={16} style={{ color: 'var(--muted)' }} />}
-                </span>
-                <span style={{ flex: 1, fontSize: 13,
-                  color: t.status === 'Terminé' && t.lastCompletedAt === now ? 'var(--muted)' : 'var(--text)',
-                  textDecoration: t.status === 'Terminé' && t.lastCompletedAt === now ? 'line-through' : 'none' }}>
-                  {t.name}
-                </span>
-                {t.recurrenceTime && <span style={{ fontSize: 11, color: '#5B8DBF', display: 'flex', alignItems: 'center', gap: 3 }}><Clock size={11} /> {t.recurrenceTime}</span>}
-              </div>
-            ))
+            : <StaggerList>
+              {todayHabits.map(t => (
+                <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0',
+                  borderBottom: '1px solid var(--border)' }}>
+                  <span style={{ display: 'inline-flex' }}>
+                    {t.status === 'Terminé' && t.lastCompletedAt === now
+                      ? <CheckCircle2 size={16} style={{ color: '#4ade80' }} />
+                      : <Circle size={16} style={{ color: 'var(--muted)' }} />}
+                  </span>
+                  <span style={{ flex: 1, fontSize: 13,
+                    color: t.status === 'Terminé' && t.lastCompletedAt === now ? 'var(--muted)' : 'var(--text)',
+                    textDecoration: t.status === 'Terminé' && t.lastCompletedAt === now ? 'line-through' : 'none' }}>
+                    {t.name}
+                  </span>
+                  {t.recurrenceTime && <span style={{ fontSize: 11, color: '#5B8DBF', display: 'flex', alignItems: 'center', gap: 3 }}><Clock size={11} /> {t.recurrenceTime}</span>}
+                </div>
+              ))}
+            </StaggerList>
           }
         </div>
 
@@ -419,20 +420,22 @@ export default function Dashboard() {
           </p>
           {top3.length === 0
             ? <EmptyState mark="rings" tone="success" title="Tout est terminé. Profite." />
-            : top3.map((t, i) => (
-              <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0',
-                borderBottom: '1px solid var(--border)', cursor: 'pointer' }}
-                onClick={() => setTab('taches')}>
-                <span style={{ color: '#5B8DBF', fontFamily: 'Fraunces', fontWeight: 700, fontSize: 14 }}>{i + 1}</span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ fontSize: 13, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</p>
-                  <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
-                    <span style={{ fontSize: 10, color: PRIORITY_COLOR[t.priority] }}>{t.priority}</span>
-                    {t.deadline && <span style={{ fontSize: 10, color: 'var(--muted)', display: 'inline-flex', alignItems: 'center', gap: 2 }}><Calendar size={10} /> {fmtDate(t.deadline)}</span>}
+            : <StaggerList>
+              {top3.map((t, i) => (
+                <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0',
+                  borderBottom: '1px solid var(--border)', cursor: 'pointer' }}
+                  onClick={() => setTab('taches')}>
+                  <span style={{ color: '#5B8DBF', fontFamily: 'Fraunces', fontWeight: 700, fontSize: 14 }}>{i + 1}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontSize: 13, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</p>
+                    <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
+                      <span style={{ fontSize: 10, color: PRIORITY_COLOR[t.priority ?? ''] }}>{t.priority}</span>
+                      {t.deadline && <span style={{ fontSize: 10, color: 'var(--muted)', display: 'inline-flex', alignItems: 'center', gap: 2 }}><Calendar size={10} /> {fmtDate(t.deadline)}</span>}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))
+              ))}
+            </StaggerList>
           }
         </div>
       </div>
@@ -445,18 +448,20 @@ export default function Dashboard() {
           </p>
           {todayCourses.length === 0
             ? <EmptyState mark="grid" tone="muted" title="Pas de cours. Journée à toi." />
-            : todayCourses.map(c => (
-              <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0',
-                borderBottom: '1px solid var(--border)' }}>
-                <div style={{ width: 4, height: 32, borderRadius: 2, background: c.color, flexShrink: 0 }} />
-                <div style={{ flex: 1 }}>
-                  <p style={{ fontSize: 13, fontWeight: 600, margin: 0, color: c.color }}>{c.nom}</p>
-                  <p style={{ fontSize: 11, color: 'var(--muted)', margin: '2px 0 0' }}>
-                    {c.heureDebut}–{c.heureFin}{c.salle && <> · <MapPin size={10} style={{ display: 'inline', verticalAlign: -1 }} /> {c.salle}</>}
-                  </p>
+            : <StaggerList>
+              {todayCourses.map(c => (
+                <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0',
+                  borderBottom: '1px solid var(--border)' }}>
+                  <div style={{ width: 4, height: 32, borderRadius: 2, background: c.color, flexShrink: 0 }} />
+                  <div style={{ flex: 1 }}>
+                    <p style={{ fontSize: 13, fontWeight: 600, margin: 0, color: c.color }}>{c.nom}</p>
+                    <p style={{ fontSize: 11, color: 'var(--muted)', margin: '2px 0 0' }}>
+                      {c.heureDebut}–{c.heureFin}{c.salle && <> · <MapPin size={10} style={{ display: 'inline', verticalAlign: -1 }} /> {c.salle}</>}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            ))
+              ))}
+            </StaggerList>
           }
         </div>
 
@@ -471,16 +476,18 @@ export default function Dashboard() {
           </div>
           {todayExpenses.length === 0
             ? <EmptyState mark="stack" tone="muted" title="Rien dépensé aujourd'hui. Rare, profite." />
-            : todayExpenses.slice(0, 5).map(e => (
-              <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0',
-                borderBottom: '1px solid var(--border)' }}>
-                <div style={{ width: 8, height: 8, borderRadius: '50%', background: CAT_COLORS[e.category] || '#6b7280' }} />
-                <span style={{ flex: 1, fontSize: 13 }}>{e.note || e.category}</span>
-                <span style={{ fontSize: 13, fontWeight: 600, color: '#5B8DBF' }}>
-                  {e.amount.toLocaleString('fr-FR')} F
-                </span>
-              </div>
-            ))
+            : <StaggerList>
+              {todayExpenses.slice(0, 5).map(e => (
+                <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0',
+                  borderBottom: '1px solid var(--border)' }}>
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: CAT_COLORS[e.category ?? ''] || '#6b7280' }} />
+                  <span style={{ flex: 1, fontSize: 13 }}>{e.note || e.category}</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: '#5B8DBF' }}>
+                    {e.amount.toLocaleString('fr-FR')} F
+                  </span>
+                </div>
+              ))}
+            </StaggerList>
           }
         </div>
       </div>
@@ -527,7 +534,7 @@ export default function Dashboard() {
                 </p>
                 {tomorrowTasks.map(t => (
                   <div key={t.id} onClick={() => setTab('taches')} style={{ cursor: 'pointer', padding: '5px 0', fontSize: 12 }}>
-                    <span style={{ color: PRIORITY_COLOR[t.priority], fontSize: 10, marginRight: 5 }}>●</span>
+                    <span style={{ color: PRIORITY_COLOR[t.priority ?? ''], fontSize: 10, marginRight: 5 }}>●</span>
                     <span>{t.name}</span>
                   </div>
                 ))}
@@ -590,20 +597,29 @@ export default function Dashboard() {
   )
 }
 
-function WeekView({ tasks, examens, devoirs, upcomingSubs, weekScore, setTab }) {
+interface WeekViewProps {
+  tasks: Task[]
+  examens: Exam[]
+  devoirs: Homework[]
+  upcomingSubs: (Subscription & { _next: string })[]
+  weekScore: number
+  setTab: (v: string | ((prev: string) => string)) => void
+}
+
+function WeekView({ tasks, examens, devoirs, upcomingSubs, weekScore, setTab }: WeekViewProps) {
   const today = todayISO()
   const in7 = new Date(); in7.setDate(in7.getDate() + 7)
   const in7ISO = in7.toISOString().split('T')[0]
 
   const weekExamens = examens
-    .filter(e => e.date >= today && e.date <= in7ISO)
-    .sort((a, b) => a.date.localeCompare(b.date))
+    .filter((e: Exam) => e.date >= today && e.date <= in7ISO)
+    .sort((a: Exam, b: Exam) => a.date.localeCompare(b.date))
   const weekDevoirs = devoirs
-    .filter(d => d.statut !== 'Rendu' && d.dateRendu >= today && d.dateRendu <= in7ISO)
-    .sort((a, b) => a.dateRendu.localeCompare(b.dateRendu))
+    .filter((d: Homework) => d.statut !== 'Rendu' && d.dateRendu >= today && d.dateRendu <= in7ISO)
+    .sort((a: Homework, b: Homework) => a.dateRendu.localeCompare(b.dateRendu))
   const weekTasks = tasks
-    .filter(t => !t.recurring && t.deadline && t.deadline >= today && t.deadline <= in7ISO && t.status !== 'Terminé')
-    .sort((a, b) => a.deadline.localeCompare(b.deadline))
+    .filter((t: Task) => !t.recurring && t.deadline && t.deadline >= today && t.deadline <= in7ISO && t.status !== 'Terminé')
+    .sort((a: Task, b: Task) => (a.deadline ?? '').localeCompare(b.deadline ?? ''))
 
   return (
     <>
@@ -676,7 +692,7 @@ function WeekView({ tasks, examens, devoirs, upcomingSubs, weekScore, setTab }) 
               <span style={{ fontSize: 11, color: '#5B8DBF', fontWeight: 700, minWidth: 42 }}>J-{daysUntil(t.deadline)}</span>
               <div style={{ flex: 1 }}>
                 <p style={{ fontSize: 13, fontWeight: 600, margin: 0 }}>{t.name}</p>
-                <p style={{ fontSize: 11, color: PRIORITY_COLOR[t.priority], margin: '2px 0 0' }}>{t.priority}</p>
+                <p style={{ fontSize: 11, color: PRIORITY_COLOR[t.priority ?? ''], margin: '2px 0 0' }}>{t.priority}</p>
               </div>
             </div>
           ))}

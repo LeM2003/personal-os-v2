@@ -1,4 +1,3 @@
-// @ts-nocheck — migration TypeScript en attente
 "use client"
 
 import { useEffect, useState } from 'react'
@@ -6,17 +5,22 @@ import { Download, Share, Plus, X } from 'lucide-react'
 
 const DISMISS_KEY = 'pos-install-dismissed'
 
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
+}
+
 function isIOS() {
-  return /iPhone|iPad|iPod/.test(navigator.userAgent) && !window.MSStream
+  return /iPhone|iPad|iPod/.test(navigator.userAgent) && !(window as Window & { MSStream?: unknown }).MSStream
 }
 
 function isStandalone() {
   return window.matchMedia('(display-mode: standalone)').matches
-    || window.navigator.standalone === true
+    || (window.navigator as Navigator & { standalone?: boolean }).standalone === true
 }
 
-export default function InstallPrompt({ variant = 'banner' }) {
-  const [deferred, setDeferred] = useState(null)
+export default function InstallPrompt({ variant = 'banner' }: { variant?: 'banner' | 'inline' | 'button' }) {
+  const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null)
   const [showIOS, setShowIOS] = useState(false)
   const [dismissed, setDismissed] = useState(() => {
     try { return localStorage.getItem(DISMISS_KEY) === '1' } catch { return false }
@@ -25,9 +29,9 @@ export default function InstallPrompt({ variant = 'banner' }) {
   useEffect(() => {
     if (isStandalone()) return
 
-    const onBeforeInstall = (e) => {
+    const onBeforeInstall = (e: Event) => {
       e.preventDefault()
-      setDeferred(e)
+      setDeferred(e as BeforeInstallPromptEvent)
     }
     window.addEventListener('beforeinstallprompt', onBeforeInstall)
 
@@ -135,9 +139,9 @@ export default function InstallPrompt({ variant = 'banner' }) {
   )
 }
 
-function IOSInstructions({ onClose }) {
+function IOSInstructions({ onClose }: { onClose: () => void }) {
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay" role="dialog" aria-modal="true" onClick={onClose}>
       <div className="modal-box" onClick={e => e.stopPropagation()}>
         <h3 style={{ fontFamily: 'Fraunces', fontSize: 20, marginBottom: 4, color: '#5B8DBF' }}>
           Installer sur ton iPhone

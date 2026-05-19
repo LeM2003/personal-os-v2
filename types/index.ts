@@ -1,21 +1,36 @@
-// ── Tâches & Productivité ────────────────────────────────────────────────────
+// ── Taches & Productivite ────────────────────────────────────────────────────
+
+export type TaskPriority = 'Critique' | 'Important' | 'Optionnel' | string
+export type TaskStatus = 'À faire' | 'En cours' | 'Terminé' | string
+
+export interface Subtask {
+  id: string
+  text: string
+  done: boolean
+  title?: string
+}
 
 export interface Task {
   id: string
   name: string
-  status: 'À faire' | 'En cours' | 'Terminé'
-  deadline?: string          // format ISO yyyy-mm-dd
-  duration?: number          // en minutes (pour le pomodoro)
+  status: TaskStatus
+  deadline?: string
+  duration?: number
+  durationH?: number
+  durationM?: number
   recurring?: boolean
-  recurrence?: 'daily' | 'weekly' | 'monthly'
-  recurrenceDays?: string[]  // ex: ['Lundi', 'Mercredi']
-  recurrenceTime?: string    // format HH:mm
+  recurrence?: 'daily' | 'weekly' | 'monthly' | string
+  recurrenceDays?: string[]
+  recurrenceTime?: string
   lastCompletedAt?: string | null
-  project?: string           // id du projet lié
-  priority?: 'low' | 'medium' | 'high'
-  createdAt?: string         // format ISO yyyy-mm-dd
-  taskTime?: string          // heure prévue pour les tâches ponctuelles HH:mm
-  [key: string]: unknown     // champs additionnels non encore typés
+  project?: string
+  priority?: TaskPriority
+  createdAt?: string
+  taskTime?: string
+  details?: string
+  subtasks?: Subtask[]
+  flexible?: boolean
+  linkedDevoirId?: string
 }
 
 export interface Adjustment {
@@ -28,112 +43,170 @@ export interface Adjustment {
   originalTask: Task
 }
 
-// État du pomodoro (non persisté, uniquement en mémoire)
 export interface PomodoroState {
   task: Task
-  total: number        // durée totale en secondes
+  total: number
   timeLeft: number
   running: boolean
   finished: boolean
-  endTime: number      // timestamp ms — permet de survivre en arrière-plan
+  endTime: number
   pausedTimeLeft?: number
 }
 
 // ── Projets ──────────────────────────────────────────────────────────────────
 
+export type ProjectType = 'projet' | 'idee' | string
+export type ProjectStatus = 'En cours' | 'Terminé' | 'En pause' | 'Abandonné' | string
+
+export interface ProjectStep {
+  id: string
+  text: string
+  done: boolean
+}
+
 export interface Project {
   id: string
   name: string
-  description?: string
-  status?: string
+  objective?: string
+  targetDate?: string
+  type?: ProjectType
+  notes?: string
+  createdAt?: string
+  steps?: ProjectStep[]
+  aiAnalysis?: string | null
+  status?: ProjectStatus
   deadline?: string
   tags?: string[]
+  description?: string
 }
 
 // ── Finances ─────────────────────────────────────────────────────────────────
 
+export type ExpenseType = 'Variable' | 'Fixe' | string
+export type ExpenseCategory = 'Alimentation' | 'Transport' | 'Télécom' | 'Santé' | 'Business' | 'École' | 'Loisirs' | 'Autre' | string
+
 export interface Expense {
   id: string
-  label: string
+  label?: string
   amount: number
-  date: string         // format ISO yyyy-mm-dd
-  category?: string
+  date: string
+  category?: ExpenseCategory
+  type?: ExpenseType
+  note?: string
 }
+
+export type SubCycle = 'Hebdomadaire' | 'Mensuel' | 'Trimestriel' | 'Annuel' | string
+export type SubCategory = 'Business' | 'Loisirs' | 'École' | 'Autre' | string
 
 export interface Subscription {
   id: string
   name: string
   amount: number
-  cycle: 'Mensuel' | 'Trimestriel' | 'Annuel' | 'Hebdomadaire'
-  startDate: string    // format ISO yyyy-mm-dd
-  nextRenewal: string  // format ISO yyyy-mm-dd
-  category?: string
+  cycle: SubCycle
+  startDate: string
+  nextRenewal: string
+  category?: SubCategory
   lastPaid?: string
 }
 
+export type DebtDirection = 'je_dois' | 'on_me_doit' | string
+
 export interface Debt {
   id: string
-  label: string
+  person: string
   amount: number
-  to: string           // à qui on doit (nom ou description)
-  dueDate?: string
+  direction: DebtDirection
+  date?: string
+  note?: string
+  paid: boolean
+  paidAt?: string | null
+}
+
+export type SavingsHistoryType = 'depot' | 'retrait' | string
+
+export interface SavingsHistory {
+  id: string
+  amount: number
+  type: SavingsHistoryType
+  date: string
 }
 
 export interface SavingsEntry {
   id: string
-  label: string
-  amount: number       // montant déjà épargné
-  goal?: number        // objectif à atteindre
+  name: string
+  goal?: number | null
+  current: number
+  color?: string
+  note?: string
+  createdAt?: string
+  history?: SavingsHistory[]
 }
 
-// Budgets par catégorie : { "Nourriture": 150, "Transport": 80, ... }
 export type Budgets = Record<string, number>
 
-// ── École ────────────────────────────────────────────────────────────────────
+// ── Ecole ────────────────────────────────────────────────────────────────────
 
 export interface Subject {
   id: string
   name: string
+  short?: string
+  coef?: number
   color?: string
 }
 
+export type CourseDay = 'Lundi' | 'Mardi' | 'Mercredi' | 'Jeudi' | 'Vendredi' | 'Samedi'
+
 export interface Course {
   id: string
-  nom: string          // nom de la matière
-  jour: string         // ex: 'Lundi'
-  jours?: string[]     // pour la saisie du formulaire
-  heureDebut: string   // format HH:mm
-  heureFin?: string    // format HH:mm
+  nom: string
+  jour: CourseDay | string
+  jours?: CourseDay[]
+  heureDebut: string
+  heureFin?: string
   salle?: string
   professeur?: string
   color?: string
-  dateDebut?: string   // format ISO yyyy-mm-dd
-  dateFin?: string     // format ISO yyyy-mm-dd
+  dateDebut?: string | null
+  dateFin?: string | null
+  attended?: string[]
 }
+
+export type HomeworkStatus = 'À faire' | 'En cours' | 'Rendu' | string
+export type HomeworkPriority = 'Critique' | 'Important' | 'Optionnel' | string
 
 export interface Homework {
   id: string
   matiere: string
   description?: string
-  dateRendu: string    // format ISO yyyy-mm-dd
-  statut: 'À rendre' | 'Rendu'
+  dateRendu: string
+  statut: HomeworkStatus
+  priorite?: HomeworkPriority
 }
 
 export interface Exam {
   id: string
   matiere: string
-  date: string         // format ISO yyyy-mm-dd
-  heure: string        // format HH:mm
+  date: string
+  heure: string
   salle?: string
   notes?: string
+  chapitres?: string
+  totalChapitres?: number
+  chapitresRevises?: number
 }
+
+export type GradeType = 'Contrôle' | 'DS' | 'Oral' | string
 
 export interface Grade {
   id: string
-  matiere: string
-  note: number         // sur 20
-  coeff?: number
+  subjectId: string
+  grade: number
+  coef?: number
+  type?: GradeType
+  title?: string
   date?: string
+  matiere?: string
+  note?: number
   label?: string
 }
 
@@ -146,11 +219,19 @@ export interface UserProfile {
   nom?: string
   mode: UserMode
   customTabs?: string[]
+  objectif?: string
 }
 
 // ── Streak ───────────────────────────────────────────────────────────────────
 
 export interface StreakData {
   count: number
-  lastDate: string     // format ISO yyyy-mm-dd
+  lastDate: string
+}
+
+// ── Alert type ───────────────────────────────────────────────────────────────
+
+export interface AlertItem {
+  type: 'red' | 'yellow' | 'blue'
+  msg: string
 }

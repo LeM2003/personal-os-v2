@@ -1,22 +1,22 @@
-// @ts-nocheck — migration TypeScript en attente
 "use client"
 
 import { useMemo, useState } from 'react'
 import { useApp } from '../../context/AppContext'
 import { genId, todayISO } from '../../utils/dates'
 import { haptic, hapticSuccess } from '../../utils/haptics'
+import type { Grade, Subject } from '@/types'
 import BottomSheet from '../shared/BottomSheet'
 
 const TYPES = ['Contrôle', 'DS', 'Oral']
 
-const gradeColor = (n) => {
+const gradeColor = (n: number) => {
   if (n < 10) return '#f87171'
   if (n < 12) return '#fb923c'
   if (n >= 16) return '#4ade80'
   return '#5B8DBF'
 }
 
-const fmtShortDate = (iso) => {
+const fmtShortDate = (iso: string | undefined) => {
   if (!iso) return ''
   const d = new Date(iso)
   const m = ['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'][d.getMonth()]
@@ -24,16 +24,39 @@ const fmtShortDate = (iso) => {
 }
 
 // Initiale auto à partir du nom (première lettre majuscule, fallback ?)
-const autoShort = (name) => {
+const autoShort = (name: string) => {
   const s = (name || '').trim()
   if (!s) return '?'
   return s[0].toUpperCase()
 }
 
+interface SubjectStat {
+  id: string
+  subj: Subject | undefined
+  avg: number
+  count: number
+  last: string | null
+}
+
+interface NoteDraft {
+  subjectId: string
+  grade: number
+  coef: number
+  type: string
+  title: string
+  date: string
+}
+
+interface SubjectDraft {
+  name: string
+  short: string
+  coef: number
+}
+
 export default function Notes() {
   const { notes, setNotes, subjects, setSubjects } = useApp()
   const [sheetOpen, setSheetOpen] = useState(false)
-  const [editId, setEditId] = useState(null)
+  const [editId, setEditId] = useState<string | null>(null)
   const [manageOpen, setManageOpen] = useState(false)
 
   const subjById = useMemo(
@@ -42,16 +65,17 @@ export default function Notes() {
   )
 
   // Moyennes par matière (pondérées par coef des notes)
-  const subjectStats = useMemo(() => {
-    const m = new Map()
+  const subjectStats = useMemo<SubjectStat[]>(() => {
+    const m = new Map<string, { w: number; c: number; count: number; last: string | null }>()
     for (const n of notes) {
       if (!subjById[n.subjectId]) continue  // matière supprimée : ignore
       if (!m.has(n.subjectId)) m.set(n.subjectId, { w: 0, c: 0, count: 0, last: null })
-      const s = m.get(n.subjectId)
+      const s = m.get(n.subjectId)!
       s.w += n.grade * (n.coef || 1)
       s.c += (n.coef || 1)
       s.count++
-      if (!s.last || n.date > s.last) s.last = n.date
+      const nDate = n.date ?? ''
+      if (!s.last || nDate > s.last) s.last = nDate
     }
     return Array.from(m.entries()).map(([id, s]) => ({
       id, subj: subjById[id], avg: s.c > 0 ? s.w / s.c : 0, count: s.count, last: s.last,
@@ -81,10 +105,10 @@ export default function Notes() {
     if (!hasSubjects) { haptic(5); setManageOpen(true); return }
     haptic(5); setEditId(null); setSheetOpen(true)
   }
-  const openEdit = (noteId) => { setEditId(noteId); setSheetOpen(true) }
+  const openEdit = (noteId: string) => { setEditId(noteId); setSheetOpen(true) }
   const closeSheet = () => { setSheetOpen(false); setEditId(null) }
 
-  const saveNote = (draft) => {
+  const saveNote = (draft: NoteDraft) => {
     if (editId) {
       setNotes(p => p.map(n => n.id === editId ? { ...n, ...draft } : n))
     } else {
@@ -94,15 +118,15 @@ export default function Notes() {
     closeSheet()
   }
 
-  const deleteNote = (id) => {
+  const deleteNote = (id: string) => {
     setNotes(p => p.filter(n => n.id !== id))
     haptic(8)
     closeSheet()
   }
 
   // ─── Gestion matières ───
-  const createSubject = (draft) => {
-    const subj = {
+  const createSubject = (draft: SubjectDraft): Subject => {
+    const subj: Subject = {
       id: genId(),
       name: draft.name.trim(),
       short: (draft.short || autoShort(draft.name)).slice(0, 3),
@@ -112,14 +136,14 @@ export default function Notes() {
     haptic(5)
     return subj
   }
-  const updateSubject = (id, patch) => {
+  const updateSubject = (id: string, patch: Partial<Subject>) => {
     setSubjects(p => p.map(s => s.id === id ? {
       ...s, ...patch,
-      coef: Math.max(1, Math.min(20, +patch.coef || s.coef || 1)),
-      short: (patch.short ?? s.short).slice(0, 3),
+      coef: Math.max(1, Math.min(20, +(patch.coef ?? 0) || s.coef || 1)),
+      short: ((patch.short ?? s.short) || '').slice(0, 3),
     } : s))
   }
-  const deleteSubject = (id) => {
+  const deleteSubject = (id: string) => {
     const affected = notes.filter(n => n.subjectId === id).length
     const msg = affected > 0
       ? `Supprimer cette matière ? Les ${affected} note${affected > 1 ? 's' : ''} associée${affected > 1 ? 's' : ''} seront aussi effacée${affected > 1 ? 's' : ''}.`
@@ -197,14 +221,14 @@ export default function Notes() {
         onCreate={createSubject}
         onUpdate={updateSubject}
         onDelete={deleteSubject}
-        countForSubject={(id) => notes.filter(n => n.subjectId === id).length}
+        countForSubject={(id: string) => notes.filter(n => n.subjectId === id).length}
       />
     </div>
   )
 }
 
 // ───────────── Bloc moyenne générale ─────────────
-function HeroAvg({ avg, stats }) {
+function HeroAvg({ avg, stats }: { avg: number; stats: SubjectStat[] }) {
   const shown = stats.slice(0, 6)
   return (
     <div style={{
@@ -229,11 +253,11 @@ function HeroAvg({ avg, stats }) {
   )
 }
 
-function MiniBars({ data }) {
+function MiniBars({ data }: { data: SubjectStat[] }) {
   if (!data.length) return null
   return (
     <div style={{ display: 'flex', gap: 3, alignItems: 'flex-end', height: 36 }}>
-      {data.map(s => {
+      {data.map((s: SubjectStat) => {
         const h = Math.max(4, (s.avg / 20) * 36)
         return (
           <div key={s.id}
@@ -245,7 +269,7 @@ function MiniBars({ data }) {
   )
 }
 
-function SectionTitle({ children, right }) {
+function SectionTitle({ children, right }: { children: React.ReactNode; right?: React.ReactNode }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
       <h3 style={{
@@ -259,7 +283,7 @@ function SectionTitle({ children, right }) {
   )
 }
 
-function SubjectRow({ stat }) {
+function SubjectRow({ stat }: { stat: SubjectStat }) {
   const c = gradeColor(stat.avg)
   return (
     <div className="card" style={{
@@ -290,7 +314,7 @@ function SubjectRow({ stat }) {
   )
 }
 
-function RecentNote({ note, subj, onEdit }) {
+function RecentNote({ note, subj, onEdit }: { note: Grade; subj: Subject | undefined; onEdit: () => void }) {
   const c = gradeColor(note.grade)
   return (
     <button onClick={onEdit} type="button" className="card"
@@ -327,7 +351,7 @@ function RecentNote({ note, subj, onEdit }) {
 }
 
 // ───────────── État vide ─────────────
-function EmptyState({ hasSubjects, onAdd, onManage }) {
+function EmptyState({ hasSubjects, onAdd, onManage }: { hasSubjects: boolean; onAdd: () => void; onManage: () => void }) {
   return (
     <div style={{
       display: 'flex', flexDirection: 'column', alignItems: 'center',
@@ -371,7 +395,7 @@ function EmptyState({ hasSubjects, onAdd, onManage }) {
   )
 }
 
-function DecoCard({ label, grade, color, top, left, right, w, rot }) {
+function DecoCard({ label, grade, color, top, left, right, w, rot }: { label: string; grade: string; color: string; top: number; left?: number; right?: number; w: number; rot: number }) {
   return (
     <div style={{
       position: 'absolute', top, left, right,
@@ -391,7 +415,7 @@ function DecoCard({ label, grade, color, top, left, right, w, rot }) {
   )
 }
 
-function FAB({ onClick }) {
+function FAB({ onClick }: { onClick: () => void }) {
   return (
     <button onClick={onClick} type="button"
       style={{
@@ -411,7 +435,17 @@ function FAB({ onClick }) {
 }
 
 // ───────────── Bottom sheet ajout / édition note ─────────────
-function AddNoteSheet({ open, onClose, onSave, onDelete, onCreateSubject, subjects, initial }) {
+interface AddNoteSheetProps {
+  open: boolean
+  onClose: () => void
+  onSave: (draft: NoteDraft) => void
+  onDelete: (() => void) | null
+  onCreateSubject: (draft: SubjectDraft) => Subject
+  subjects: Subject[]
+  initial: Grade | null | undefined
+}
+
+function AddNoteSheet({ open, onClose, onSave, onDelete, onCreateSubject, subjects, initial }: AddNoteSheetProps) {
   const [subjectId, setSubjectId] = useState(initial?.subjectId || subjects[0]?.id || '')
   const [gradeStr,  setGradeStr]  = useState(initial ? String(initial.grade).replace('.', ',') : '')
   const [type,      setType]      = useState(initial?.type || 'Contrôle')
@@ -425,7 +459,7 @@ function AddNoteSheet({ open, onClose, onSave, onDelete, onCreateSubject, subjec
   const [newCoef,    setNewCoef]    = useState(1)
 
   // Reset sur ré-ouverture
-  const [lastKey, setLastKey] = useState(null)
+  const [lastKey, setLastKey] = useState<string | null>(null)
   const currentKey = (open ? 'open' : 'closed') + '-' + (initial?.id || 'new')
   if (currentKey !== lastKey && open) {
     setSubjectId(initial?.subjectId || subjects[0]?.id || '')
@@ -439,7 +473,7 @@ function AddNoteSheet({ open, onClose, onSave, onDelete, onCreateSubject, subjec
     setLastKey(currentKey)
   }
 
-  const press = (k) => {
+  const press = (k: string) => {
     haptic(3)
     if (k === '⌫') return setGradeStr(s => s.slice(0, -1))
     if (k === ',') {
@@ -491,7 +525,7 @@ function AddNoteSheet({ open, onClose, onSave, onDelete, onCreateSubject, subjec
           paddingBottom: 4, marginLeft: -4, marginRight: -4, padding: '0 4px 4px',
           scrollbarWidth: 'none',
         }}>
-          {subjects.map(s => {
+          {subjects.map((s: Subject) => {
             const active = s.id === subjectId
             return (
               <button key={s.id} onClick={() => { setSubjectId(s.id); haptic(3) }} type="button"
@@ -672,7 +706,17 @@ function AddNoteSheet({ open, onClose, onSave, onDelete, onCreateSubject, subjec
 }
 
 // ───────────── Bottom sheet gestion matières ─────────────
-function SubjectManagerSheet({ open, onClose, subjects, onCreate, onUpdate, onDelete, countForSubject }) {
+interface SubjectManagerSheetProps {
+  open: boolean
+  onClose: () => void
+  subjects: Subject[]
+  onCreate: (draft: SubjectDraft) => Subject
+  onUpdate: (id: string, patch: Partial<Subject>) => void
+  onDelete: (id: string) => void
+  countForSubject: (id: string) => number
+}
+
+function SubjectManagerSheet({ open, onClose, subjects, onCreate, onUpdate, onDelete, countForSubject }: SubjectManagerSheetProps) {
   const [name,  setName]  = useState('')
   const [short, setShort] = useState('')
   const [coef,  setCoef]  = useState(1)
@@ -723,10 +767,10 @@ function SubjectManagerSheet({ open, onClose, subjects, onCreate, onUpdate, onDe
         <>
           <Label>Tes matières ({subjects.length})</Label>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {subjects.map(s => (
+            {subjects.map((s: Subject) => (
               <SubjectEditRow key={s.id} subj={s}
                 count={countForSubject(s.id)}
-                onUpdate={(patch) => onUpdate(s.id, patch)}
+                onUpdate={(patch: Partial<Subject>) => onUpdate(s.id, patch)}
                 onDelete={() => onDelete(s.id)} />
             ))}
           </div>
@@ -736,7 +780,7 @@ function SubjectManagerSheet({ open, onClose, subjects, onCreate, onUpdate, onDe
   )
 }
 
-function SubjectEditRow({ subj, count, onUpdate, onDelete }) {
+function SubjectEditRow({ subj, count, onUpdate, onDelete }: { subj: Subject; count: number; onUpdate: (patch: Partial<Subject>) => void; onDelete: () => void }) {
   return (
     <div style={{
       padding: '10px 12px', borderRadius: 12,
@@ -771,7 +815,7 @@ function SubjectEditRow({ subj, count, onUpdate, onDelete }) {
   )
 }
 
-function Label({ children }) {
+function Label({ children }: { children: React.ReactNode }) {
   return (
     <p style={{
       fontSize: 11, color: 'var(--muted)',

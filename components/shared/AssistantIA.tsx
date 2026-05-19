@@ -287,8 +287,8 @@ export default function AssistantIA({ onClose }: AssistantIAProps) {
         app.setDevoirs(prev => [...prev, {
           id: genId(), matiere: String(data.matiere),
           description: String(data.description || ''),
-          dateRendu: String(data.dateRendu || ''), statut: 'À rendre',
-        } as Homework])
+      dateRendu: String(data.dateRendu || ''), statut: 'À faire',
+      } as Homework])
         break
 
       case 'create_expense':

@@ -1,4 +1,3 @@
-// @ts-nocheck — migration TypeScript en attente
 "use client"
 
 import { useState } from 'react'
@@ -6,20 +5,21 @@ import { useApp } from '../../context/AppContext'
 import { genId, todayISO, fmtDate, daysUntil } from '../../utils/dates'
 import { advanceCycle, computeNextRenewal, monthlyEquiv } from '../../utils/subscriptions'
 import EmptyState from '../shared/EmptyState'
+import type { Subscription } from '@/types'
 
-const CYCLE_COLORS = { Mensuel: '#60a5fa', Trimestriel: '#a78bfa', Annuel: '#34d399', Hebdomadaire: '#fb923c' }
+const CYCLE_COLORS: Record<string, string> = { Mensuel: '#60a5fa', Trimestriel: '#a78bfa', Annuel: '#34d399', Hebdomadaire: '#fb923c' }
 
 export default function Abonnements() {
   const { subscriptions, setSubscriptions } = useApp()
   const blank = { name: '', amount: '', startDate: todayISO(), cycle: 'Mensuel', category: 'Business' }
   const [form, setForm] = useState(blank)
   const [showForm, setShowForm] = useState(false)
-  const [editingId, setEditingId] = useState(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
 
   const openAdd = () => { setEditingId(null); setForm(blank); setShowForm(true) }
-  const openEdit = sub => {
+  const openEdit = (sub: Subscription) => {
     setEditingId(sub.id)
-    setForm({ name: sub.name, amount: String(sub.amount), startDate: sub.startDate || todayISO(), cycle: sub.cycle || 'Mensuel', category: sub.category })
+    setForm({ name: sub.name, amount: String(sub.amount), startDate: sub.startDate || todayISO(), cycle: sub.cycle || 'Mensuel', category: sub.category ?? 'Business' })
     setShowForm(true)
   }
   const closeForm = () => { setShowForm(false); setEditingId(null); setForm(blank) }
@@ -35,7 +35,7 @@ export default function Abonnements() {
     closeForm()
   }
 
-  const markPaid = sub => {
+  const markPaid = (sub: Subscription) => {
     const next = advanceCycle(sub.nextRenewal || computeNextRenewal(sub.startDate, sub.cycle), sub.cycle)
     setSubscriptions(p => p.map(s => s.id === sub.id ? { ...s, nextRenewal: next, lastPaid: todayISO() } : s))
   }
@@ -45,7 +45,7 @@ export default function Abonnements() {
   const sorted = [...subscriptions].sort((a, b) => {
     const da = a.nextRenewal || computeNextRenewal(a.startDate, a.cycle || 'Mensuel')
     const db = b.nextRenewal || computeNextRenewal(b.startDate, b.cycle || 'Mensuel')
-    return new Date(da) - new Date(db)
+    return new Date(da).getTime() - new Date(db).getTime()
   })
 
   return (

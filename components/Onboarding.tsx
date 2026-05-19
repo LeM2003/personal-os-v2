@@ -1,10 +1,13 @@
-// @ts-nocheck — migration TypeScript en attente
 "use client"
 
 import { useState } from 'react'
 import AbstractMark from './shared/AbstractMark'
+import GlowButton from './shared/GlowButton'
+import type { UserProfile, UserMode } from '@/types'
 
-const PROMISES = [
+type AbstractMarkVariant = React.ComponentProps<typeof AbstractMark>['variant']
+
+const PROMISES: { mark: AbstractMarkVariant; label: string; sub: string }[] = [
   { mark: 'rings', label: 'Tout à un seul endroit',
     sub: 'Tâches, finances, apprentissage, projets.' },
   { mark: 'arc',   label: 'Un rythme qui te respecte',
@@ -15,7 +18,7 @@ const PROMISES = [
 
 const CONTEXTES = ['Études', 'Formation', 'Travail', 'Freelance', 'Autre']
 
-function Progress({ step, total = 3 }) {
+function Progress({ step, total = 3 }: { step: number; total?: number }) {
   return (
     <div style={{ display: 'flex', gap: 6, justifyContent: 'center', padding: '18px 0 8px' }}>
       {Array.from({ length: total }).map((_, i) => (
@@ -30,7 +33,7 @@ function Progress({ step, total = 3 }) {
   )
 }
 
-function Screen({ children }) {
+function Screen({ children }: { children: React.ReactNode }) {
   return (
     <div style={{
       display: 'flex', flexDirection: 'column',
@@ -42,15 +45,13 @@ function Screen({ children }) {
   )
 }
 
-function Footer({ primary, onPrimary, disabled, secondary, onSecondary }) {
+function Footer({ primary, onPrimary, disabled, secondary, onSecondary }: { primary: string; onPrimary: () => void; disabled?: boolean; secondary?: string; onSecondary?: () => void }) {
   return (
     <div style={{ marginTop: 'auto', paddingTop: 28, display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <button className="btn-gold" onClick={onPrimary} disabled={disabled}
-        style={{
-          width: '100%', borderRadius: 14, padding: '15px',
-          fontSize: 15.5, fontWeight: 600,
-          opacity: disabled ? 0.55 : 1,
-        }}>{primary}</button>
+      <GlowButton variant="primary" size="lg" onClick={onPrimary} disabled={disabled}
+        style={{ width: '100%', borderRadius: 14 }}>
+        {primary}
+      </GlowButton>
       {secondary && (
         <button onClick={onSecondary}
           style={{
@@ -103,30 +104,36 @@ const ALL_MODULE_OPTIONS = [
   { id: 'ajustements', emoji: '🔄', label: 'Ajustements' },
 ]
 
-export default function Onboarding({ profile, onFinish }) {
+interface OnboardingProps {
+  profile: UserProfile | null
+  onFinish: (next: UserProfile) => void
+}
+
+export default function Onboarding({ profile, onFinish }: OnboardingProps) {
   const [step, setStep] = useState(0)
-  const [mode, setMode] = useState(profile?.mode || '')
+  const [mode, setMode] = useState<UserMode | ''>(profile?.mode || '')
   const [objectif, setObjectif] = useState(profile?.objectif || '')
   const [pasted, setPasted] = useState('')
-  const [customTabs, setCustomTabs] = useState(
+  const [customTabs, setCustomTabs] = useState<string[]>(
     profile?.customTabs || ['taches', 'finances', 'stats', 'ajustements']
   )
 
-  const toggleCustomTab = (id) => {
+  const toggleCustomTab = (id: string) => {
     if (id === 'dashboard') return // dashboard toujours présent
-    setCustomTabs(prev =>
-      prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id]
+    setCustomTabs((prev: string[]) =>
+      prev.includes(id) ? prev.filter((t: string) => t !== id) : [...prev, id]
     )
   }
 
-  const finish = (patch = {}) => {
+  const finish = (patch: Partial<UserProfile> & { pendingImport?: string } = {}) => {
     const next = {
-      ...profile,
-      ...(mode ? { mode } : { mode: 'les-deux' }),
-      ...(mode === 'custom' ? { customTabs: ['dashboard', ...customTabs.filter(t => t !== 'dashboard')] } : {}),
+      ...(profile || {}),
+      prenom: profile?.prenom || '',
+      ...(mode ? { mode: mode as UserMode } : { mode: 'les-deux' as UserMode }),
+      ...(mode === 'custom' ? { customTabs: ['dashboard', ...customTabs.filter((t: string) => t !== 'dashboard')] } : {}),
       ...(objectif.trim() ? { objectif: objectif.trim() } : {}),
       ...patch,
-    }
+    } as UserProfile
     onFinish(next)
   }
 
@@ -197,7 +204,7 @@ export default function Onboarding({ profile, onFinish }) {
           {MODES.map(m => {
             const on = mode === m.id
             return (
-              <button key={m.id} type="button" onClick={() => setMode(m.id)}
+              <button key={m.id} type="button" onClick={() => setMode(m.id as UserMode)}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 16,
                   padding: '18px 20px', borderRadius: 16, cursor: 'pointer', textAlign: 'left',
@@ -349,7 +356,7 @@ export default function Onboarding({ profile, onFinish }) {
         {/* Start empty */}
         <div style={{ padding: '18px 0 0' }}>
           <button
-            onClick={() => finish({ pendingImport: null })}
+            onClick={() => finish({ pendingImport: '' })}
             style={{
               width: '100%', background: 'var(--card)',
               border: '1px solid var(--border)', borderRadius: 14,

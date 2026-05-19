@@ -1,9 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Groq from 'groq-sdk'
+import { rateLimit } from '@/utils/rateLimit'
+
+const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 100 })
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
 
+function getClientIp(req: NextRequest): string {
+  return req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+    || req.headers.get('x-real-ip')
+    || 'unknown'
+}
+
 export async function POST(req: NextRequest) {
+  const ip = getClientIp(req)
+  const { success, remaining } = limiter(ip)
+
+  if (!success) {
+    return NextResponse.json(
+      { error: 'Trop de requêtes. Réessayez dans quelques minutes.' },
+      {
+        status: 429,
+        headers: {
+          'Retry-After': String(15 * 60),
+          'X-RateLimit-Remaining': '0',
+        },
+      },
+    )
+  }
+
   try {
     const { messages, task } = await req.json()
 
@@ -17,15 +42,15 @@ Réponds UNIQUEMENT avec un JSON valide (pas de markdown, pas de commentaire).
 
 Le format attendu :
 {
-  "taches": [
-    { "name": "...", "project": "École" ou "", "priority": "Critique"|"Important"|"Optionnel", "duration": 60, "deadline": "YYYY-MM-DD" ou "", "flexible": false }
-  ],
-  "devoirs": [
-    { "matiere": "...", "description": "...", "dateRendu": "YYYY-MM-DD" ou "", "priorite": "Critique"|"Important"|"Optionnel" }
-  ],
-  "examens": [
-    { "matiere": "...", "date": "YYYY-MM-DD" ou "", "heure": "HH:MM", "salle": "", "chapitres": "...", "totalChapitres": 3, "chapitresRevises": 0 }
-  ]
+"taches": [
+{ "name": "...", "project": "École" ou "", "priority": "Critique"|"Important"|"Optionnel", "duration": 60, "deadline": "YYYY-MM-DD" ou "", "flexible": false }
+],
+"devoirs": [
+{ "matiere": "...", "description": "...", "dateRendu": "YYYY-MM-DD" ou "", "priorite": "Critique"|"Important"|"Optionnel" }
+],
+"examens": [
+{ "matiere": "...", "date": "YYYY-MM-DD" ou "", "heure": "HH:MM", "salle": "", "chapitres": "...", "totalChapitres": 3, "chapitresRevises": 0 }
+]
 }
 
 Règles :
@@ -61,7 +86,10 @@ Donne des conseils courts et actionnables en français.`,
     })
 
     const content = completion.choices[0]?.message?.content || ''
-    return NextResponse.json({ content })
+    return NextResponse.json(
+      { content },
+      { headers: { 'X-RateLimit-Remaining': String(remaining) } },
+    )
   } catch (err) {
     console.error('Groq API error:', err)
     return NextResponse.json({ error: 'Erreur IA' }, { status: 500 })

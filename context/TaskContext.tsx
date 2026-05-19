@@ -28,14 +28,17 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
   const [projects,    setProjects]    = useLS<Project[]>('pos_projects',  [])
   const [adjustments, setAdjustments] = useLS<Adjustment[]>('pos_adjustments', [])
 
-  /* ── Réinitialisation des tâches récurrentes ── */
-  const didResetRef = useRef(false)
+  /* ── Initialisation : réinitialisation des récurrentes + déplacement des retards
+        en un seul effet pour éviter la race condition entre les deux passes. ── */
+  const didInitRef = useRef(false)
   useEffect(() => {
-    if (didResetRef.current) return
-    didResetRef.current = true
+    if (didInitRef.current) return
+    didInitRef.current = true
     const today = todayISO()
+
     setTasks(prev => {
-      const updated = prev.map(t => {
+      // 1) Réinitialise les tâches récurrentes terminées hier ou avant
+      const resetRecurring = prev.map(t => {
         if (!t.recurring || t.status !== 'Terminé') return t
         if (t.lastCompletedAt && t.lastCompletedAt < today) {
           const nextDate = nextOccurrenceDate(t, t.lastCompletedAt)
@@ -43,33 +46,34 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
         }
         return t
       })
-      return updated.some((t, i) => t !== prev[i]) ? updated : prev
-    })
-  })
 
-  /* ── Auto-déplacement des tâches en retard → Ajustements ── */
-  const didAdjustRef = useRef(false)
-  useEffect(() => {
-    if (didAdjustRef.current) return
-    didAdjustRef.current = true
-    const now = todayISO()
-    const overdue = tasks.filter(t => t.deadline && t.deadline < now && t.status !== 'Terminé' && !t.recurring)
-    if (!overdue.length) return
-    const ids = new Set(overdue.map(t => t.id))
-    const existIds = new Set(adjustments.map(a => a.taskId))
-    const news = overdue.filter(t => !existIds.has(t.id))
-    if (!news.length) return
-    setTasks(prev => prev.filter(t => !ids.has(t.id)))
-    setAdjustments(prev => [...prev, ...news.map(t => ({
-      id: Math.random().toString(36).slice(2) + Date.now().toString(36),
-      taskId: t.id,
-      taskName: t.name,
-      originalDeadline: t.deadline!,
-      reason: 'manque de temps',
-      newDate: '',
-      originalTask: { ...t },
-    }))])
-  })
+      // 2) À partir du résultat de l'étape 1, identifie les tâches en retard à déplacer
+      const overdue = resetRecurring.filter(t => t.deadline && t.deadline < today && t.status !== 'Terminé' && !t.recurring)
+      if (!overdue.length) {
+        return resetRecurring.some((t, i) => t !== prev[i]) ? resetRecurring : prev
+      }
+
+      const existIds = new Set(adjustments.map(a => a.taskId))
+      const news = overdue.filter(t => !existIds.has(t.id))
+      if (!news.length) {
+        return resetRecurring.some((t, i) => t !== prev[i]) ? resetRecurring : prev
+      }
+
+      const idsToRemove = new Set(news.map(t => t.id))
+      setAdjustments(adjPrev => [...adjPrev, ...news.map(t => ({
+        id: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
+        taskId: t.id,
+        taskName: t.name,
+        originalDeadline: t.deadline!,
+        reason: 'manque de temps',
+        newDate: '',
+        originalTask: { ...t },
+      }))])
+
+      return resetRecurring.filter(t => !idsToRemove.has(t.id))
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   /* ── Pomodoro ── */
   const [pomo, setPomo] = useState<PomodoroState | null>(null)
@@ -110,8 +114,11 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
 
   const pausePomo = () => setPomo(p => {
     if (!p) return null
-    if (p.running) return { ...p, running: false, pausedTimeLeft: p.timeLeft }
-    const left = p.pausedTimeLeft || p.timeLeft
+    if (p.running) {
+      const actualLeft = Math.max(0, Math.round((p.endTime - Date.now()) / 1000))
+      return { ...p, running: false, timeLeft: actualLeft, pausedTimeLeft: actualLeft }
+    }
+    const left = p.pausedTimeLeft ?? p.timeLeft
     return { ...p, running: true, timeLeft: left, endTime: Date.now() + left * 1000 }
   })
 

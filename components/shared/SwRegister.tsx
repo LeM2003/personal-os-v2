@@ -1,4 +1,3 @@
-// @ts-nocheck — migration TypeScript en attente
 "use client"
 
 import { useEffect } from 'react'
@@ -10,7 +9,8 @@ export default function SwRegister() {
         .then(reg => {
           // Essayer d'activer le periodic sync si supporté
           if ('periodicSync' in reg) {
-            reg.periodicSync.register('pos-check-reminders', { minInterval: 60 * 60 * 1000 })
+            const psync = (reg as ServiceWorkerRegistration & { periodicSync: { register: (tag: string, opts: { minInterval: number }) => Promise<void> } }).periodicSync
+            psync.register('pos-check-reminders', { minInterval: 60 * 60 * 1000 })
               .catch(() => {})
           }
         })

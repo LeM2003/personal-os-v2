@@ -1,4 +1,3 @@
-// @ts-nocheck — migration TypeScript en attente
 "use client"
 
 import { useState } from 'react'
@@ -9,19 +8,22 @@ import EmptyState from '../shared/EmptyState'
 import SegmentedControl from '../shared/SegmentedControl'
 import AbstractMark from '../shared/AbstractMark'
 import BottomSheet from '../shared/BottomSheet'
+import type { Expense } from '@/types'
 
 const CATS = ['Alimentation', 'Transport', 'Télécom', 'Santé', 'Business', 'École', 'Loisirs', 'Autre']
 
-function DonutChart({ data, total, size = 140 }) {
+interface DonutData { value: number; color: string; label: string }
+
+function DonutChart({ data, total, size = 140 }: { data: DonutData[]; total: number; size?: number }) {
   if (total === 0 || !data.some(d => d.value > 0)) return null
   const cx = size / 2, cy = size / 2
   const r = size * 0.40, ir = size * 0.26
-  const polarXY = (angle, radius) => ({
+  const polarXY = (angle: number, radius: number) => ({
     x: cx + radius * Math.cos((angle - 90) * Math.PI / 180),
     y: cy + radius * Math.sin((angle - 90) * Math.PI / 180),
   })
   let start = 0
-  const segments = data.filter(d => d.value > 0).map(d => {
+  const segments = data.filter((d: DonutData) => d.value > 0).map((d: DonutData) => {
     const angle = (d.value / total) * 360
     const s = { ...d, start, angle }
     start += angle
@@ -51,19 +53,19 @@ export default function Depenses() {
   const showForm = financeFormOpen
   const setShowForm = setFinanceFormOpen
   const [editBudget, setEditBudget] = useState(false)
-  const [budgetDraft, setBudgetDraft] = useState({})
+  const [budgetDraft, setBudgetDraft] = useState<Record<string, string | number>>({})
   const blank = { amount: '', category: 'Alimentation', date: todayISO(), type: 'Variable', note: '' }
   const [form, setForm] = useState(blank)
-  const [editingId, setEditingId] = useState(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [fPeriod, setFPeriod] = useState('Mois')
   const [heroPeriod, setHeroPeriod] = useState('month')
   const [visibleCount, setVisibleCount] = useState(20)
   const [selYear, setSelYear] = useState(new Date().getFullYear())
   const [selMonth, setSelMonth] = useState(new Date().getMonth())
 
-  const openEdit = exp => {
+  const openEdit = (exp: Expense) => {
     setEditingId(exp.id)
-    setForm({ amount: String(exp.amount), category: exp.category, date: exp.date, type: exp.type, note: exp.note || '' })
+    setForm({ amount: String(exp.amount), category: exp.category ?? 'Alimentation', date: exp.date, type: exp.type ?? 'Variable', note: exp.note || '' })
     setShowForm(true)
   }
   const closeForm = () => { setEditingId(null); setForm({ ...blank, date: todayISO() }); setShowForm(false) }
@@ -93,7 +95,7 @@ export default function Depenses() {
   const weekTotal  = expenses.filter(e => e.date >= weekAgo).reduce((s, e) => s + e.amount, 0)
   const monthTotal = expenses.filter(e => e.date >= monthStart).reduce((s, e) => s + e.amount, 0)
 
-  const catTotals = {}
+  const catTotals: Record<string, number> = {}
   CATS.forEach(c => { catTotals[c] = expenses.filter(e => e.date >= monthStart && e.category === c).reduce((s, x) => s + x.amount, 0) })
   const maxVal = Math.max(...Object.values(catTotals), 1)
 
@@ -112,14 +114,14 @@ export default function Depenses() {
     setEditBudget(false)
   }
 
-  const budgetBarColor = (pct) => {
+  const budgetBarColor = (pct: number) => {
     if (pct >= 100) return '#f87171'
     if (pct >= 80)  return '#f97316'
     if (pct >= 60)  return '#5B8DBF'
     return '#4ade80'
   }
 
-  const sorted = [...expenses].sort((a, b) => new Date(b.date) - new Date(a.date))
+  const sorted = [...expenses].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 
   const prevMonth = () => {
     if (selMonth === 0) { setSelMonth(11); setSelYear(y => y - 1) }
@@ -391,7 +393,7 @@ export default function Depenses() {
                 borderBottom: '1px solid var(--border)',
                 background: editingId === e.id ? 'rgba(91,141,191,.04)' : undefined,
                 borderRadius: editingId === e.id ? 6 : undefined }}>
-                <div style={{ width: 10, height: 10, borderRadius: '50%', background: CAT_COLORS[e.category] || '#6b7280', flexShrink: 0 }} />
+                <div style={{ width: 10, height: 10, borderRadius: '50%', background: CAT_COLORS[e.category ?? ''] || '#6b7280', flexShrink: 0 }} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={{ margin: 0, fontSize: 14 }}>{e.note || e.category}</p>
                   <p style={{ margin: 0, fontSize: 11, color: 'var(--muted)' }}>{fmtDate(e.date)} · {e.category} · {e.type}</p>
