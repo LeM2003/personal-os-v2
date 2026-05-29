@@ -22,7 +22,16 @@ interface AppCoreContextValue {
   setApiKey: (v: string | ((prev: string) => string)) => void
   // Apparence
   theme: string
+  setTheme: (v: string | ((prev: string) => string)) => void
   toggleTheme: () => void
+  accent: string
+  setAccent: (v: string | ((prev: string) => string)) => void
+  fontScale: string
+  setFontScale: (v: string | ((prev: string) => string)) => void
+  reduceMotionPref: boolean
+  setReduceMotionPref: (v: boolean | ((prev: boolean) => boolean)) => void
+  defaultTab: string
+  setDefaultTab: (v: string | ((prev: string) => string)) => void
   // Notifications
   notifEnabled: boolean
   setNotifEnabled: (v: boolean | ((prev: boolean) => boolean)) => void
@@ -52,7 +61,7 @@ const AppCoreContext = createContext<AppCoreContextValue | null>(null)
 
 function AppCoreProvider({ children }: { children: React.ReactNode }) {
   // Accès aux sous-contextes (pour export/import et notifications)
-  const { tasks, setTasks, projects, setProjects, adjustments, setAdjustments } = useTaskContext()
+  const { tasks, setTasks, projects, setProjects, folders, setFolders, adjustments, setAdjustments } = useTaskContext()
   const { expenses, setExpenses, subscriptions, setSubscriptions, debts, setDebts,
           savings, setSavings, budgets, setBudgets, objectif, setObjectif } = useFinanceContext()
   const { courses, setCourses, devoirs, setDevoirs, examens, setExamens,
@@ -64,6 +73,10 @@ function AppCoreProvider({ children }: { children: React.ReactNode }) {
   const [apiKey,      setApiKey]      = useLS<string>('pos_apikey', '')
   const [notifEnabled,setNotifEnabled]= useLS<boolean>('pos_notif', false)
   const [theme,       setTheme]       = useLS<string>('pos_theme',  'dark')
+  const [accent,           setAccent]           = useLS<string>('pos_accent',       'cyan')
+  const [fontScale,        setFontScale]        = useLS<string>('pos_fontscale',    'md')
+  const [reduceMotionPref, setReduceMotionPref] = useLS<boolean>('pos_reducemotion', false)
+  const [defaultTab,       setDefaultTab]       = useLS<string>('pos_defaulttab',   'dashboard')
   const [streakData,  setStreakData]  = useLS<StreakData>('pos_streak', { count: 0, lastDate: '' })
 
   /* ── UI state (non persisté) ── */
@@ -74,11 +87,41 @@ function AppCoreProvider({ children }: { children: React.ReactNode }) {
   const [backupModal,     setBackupModal]     = useState(false)
   const importRef = useRef<HTMLInputElement>(null)
 
-  /* ── Thème ── */
+  /* ── Apparence : thème (dark/light/system) ── */
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme)
+    const root = document.documentElement
+    const applyTheme = () => {
+      const resolved = theme === 'system'
+        ? (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark')
+        : theme
+      root.setAttribute('data-theme', resolved)
+    }
+    applyTheme()
+    if (theme === 'system') {
+      const mq = window.matchMedia('(prefers-color-scheme: light)')
+      mq.addEventListener('change', applyTheme)
+      return () => mq.removeEventListener('change', applyTheme)
+    }
   }, [theme])
-  const toggleTheme = () => setTheme(t => t === 'dark' ? 'light' : 'dark')
+  const toggleTheme = () => setTheme(t => (t === 'light' ? 'dark' : 'light'))
+
+  /* ── Apparence : accent / taille d'affichage / animations ── */
+  useEffect(() => { document.documentElement.setAttribute('data-accent', accent) }, [accent])
+  useEffect(() => { document.documentElement.setAttribute('data-font-scale', fontScale) }, [fontScale])
+  useEffect(() => {
+    document.documentElement.setAttribute('data-reduce-motion', reduceMotionPref ? '1' : '0')
+  }, [reduceMotionPref])
+
+  /* ── Onglet de démarrage : applique defaultTab une fois par session ── */
+  useEffect(() => {
+    try {
+      if (!sessionStorage.getItem('pos_session_started')) {
+        sessionStorage.setItem('pos_session_started', '1')
+        if (defaultTab) setTab(defaultTab)
+      }
+    } catch { /* ignore */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   /* ── Ctrl+K → Recherche globale ── */
   useEffect(() => {
@@ -185,7 +228,7 @@ function AppCoreProvider({ children }: { children: React.ReactNode }) {
     const data = {
       version: 1,
       exportedAt: new Date().toISOString(),
-      profile, tasks, projects, expenses, subscriptions, budgets,
+      profile, tasks, projects, folders, expenses, subscriptions, budgets,
       objectif, adjustments, courses, devoirs, examens, notes, subjects,
       debts, savings,
     }
@@ -206,7 +249,7 @@ function AppCoreProvider({ children }: { children: React.ReactNode }) {
       try {
         const data = JSON.parse(ev.target?.result as string)
         if (!data.version || typeof data !== 'object') { alert('Fichier invalide — pas un backup Personal OS.'); return }
-        const arrays = ['tasks', 'projects', 'expenses', 'subscriptions', 'adjustments', 'courses', 'devoirs', 'examens', 'notes', 'subjects']
+        const arrays = ['tasks', 'projects', 'folders', 'expenses', 'subscriptions', 'adjustments', 'courses', 'devoirs', 'examens', 'notes', 'subjects']
         for (const k of arrays) {
           if (data[k] && !Array.isArray(data[k])) { alert(`Fichier corrompu — "${k}" n'est pas un tableau.`); return }
         }
@@ -224,6 +267,7 @@ function AppCoreProvider({ children }: { children: React.ReactNode }) {
         if (data.profile) setProfile(data.profile)
         if (data.tasks) setTasks(data.tasks)
         if (data.projects) setProjects(data.projects)
+        if (data.folders) setFolders(data.folders)
         if (data.expenses) setExpenses(data.expenses)
         if (data.subscriptions) setSubscriptions(data.subscriptions)
         if (data.debts) setDebts(data.debts)
@@ -248,7 +292,11 @@ function AppCoreProvider({ children }: { children: React.ReactNode }) {
     tab, setTab,
     profile, setProfile,
     apiKey, setApiKey,
-    theme, toggleTheme,
+    theme, setTheme, toggleTheme,
+    accent, setAccent,
+    fontScale, setFontScale,
+    reduceMotionPref, setReduceMotionPref,
+    defaultTab, setDefaultTab,
     notifEnabled, setNotifEnabled,
     notifSupported,
     enableNotifications,

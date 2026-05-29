@@ -17,7 +17,7 @@ import CalendarExportModal from './modals/CalendarExportModal'
 import {
   LayoutDashboard, CheckSquare, Target, GraduationCap, Wallet,
   BarChart3, RefreshCw, Search, User, Bell, BellOff, Save,
-  Sun, Moon, LogOut, MoreHorizontal, PanelLeftClose, PanelLeftOpen
+  Sun, Moon, LogOut, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Settings as SettingsIcon
 } from 'lucide-react'
 
 const LandingPage = lazy(() => import('./LandingPage'))
@@ -29,6 +29,7 @@ const Education   = lazy(() => import('./Ecole'))
 const Finances    = lazy(() => import('./Finances'))
 const Adjustments = lazy(() => import('./Adjustments'))
 const Stats       = lazy(() => import('./Stats'))
+const Settings    = lazy(() => import('./Settings'))
 
 const TabFallback = () => (
   <div style={{ padding: 40, textAlign: 'center', color: 'var(--muted)', fontSize: 13 }}>
@@ -192,6 +193,11 @@ export default function App() {
         <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16, marginTop: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
           {sidebarOpen ? (
             <>
+              <button className="btn-ghost" style={{ width: '100%', fontSize: 12, padding: '8px 12px', textAlign: 'left',
+                color: tab === 'reglages' ? 'var(--accent-1)' : undefined, borderColor: tab === 'reglages' ? 'var(--accent-1)' : undefined }}
+                onClick={() => setTab('reglages')}>
+                <SettingsIcon size={13} style={{ display: 'inline', verticalAlign: -2, marginRight: 4 }} /> Réglages
+              </button>
               {profile && (
                 <button className="btn-ghost" style={{ width: '100%', fontSize: 12, padding: '8px 12px', textAlign: 'left' }}
                   onClick={() => setProfileModal(true)}>
@@ -227,6 +233,8 @@ export default function App() {
             </>
           ) : (
             <>
+              <button className="btn-icon" onClick={() => setTab('reglages')} title="Réglages"
+                style={tab === 'reglages' ? { color: 'var(--accent-1)' } : undefined}><SettingsIcon size={16} /></button>
               <button className="btn-icon" onClick={() => setProfileModal(true)} title="Profil"><User size={16} /></button>
               <button className="btn-icon" onClick={toggleTheme} title={theme === 'dark' ? 'Thème clair' : 'Thème sombre'}>
                 {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
@@ -250,6 +258,7 @@ export default function App() {
             {tab === 'finances'    && <Finances />}
             {tab === 'stats'       && <Stats />}
             {tab === 'ajustements' && <Adjustments />}
+            {tab === 'reglages'    && <Settings />}
           </Suspense>
         </PageTransition>
       </main>
@@ -365,6 +374,20 @@ export default function App() {
             {/* Paramètres */}
             <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', letterSpacing: 1.2,
               textTransform: 'uppercase', padding: '0 20px', margin: '0 0 6px' }}>Paramètres</p>
+
+            <button onClick={() => { setMobileMore(false); setTab('reglages') }}
+              style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 20px',
+                background: 'none', border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left',
+                color: 'var(--text)', fontFamily: 'var(--font-dm-sans, DM Sans)', fontSize: 15 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--surface-elevated)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <SettingsIcon size={18} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <p style={{ margin: 0, fontWeight: 500 }}>Réglages</p>
+                <p style={{ margin: 0, fontSize: 12, color: 'var(--muted)' }}>Apparence, accent, comportement</p>
+              </div>
+            </button>
 
             <button onClick={() => { setMobileMore(false); toggleTheme() }}
               style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 20px',
