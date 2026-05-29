@@ -10,6 +10,7 @@ import TextImport from './shared/TextImport'
 import SwipeRow from './shared/SwipeRow'
 import BottomSheet from './shared/BottomSheet'
 import FolderManager from './modals/FolderManager'
+import DayView from './DayView'
 import { haptic, hapticSuccess } from '../utils/haptics'
 import type { Task, TaskStatus, Subtask, Homework, Exam, Folder as TFolder } from '@/types'
 import {
@@ -83,6 +84,7 @@ export default function Taches() {
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null)
   const [snoozeForId, setSnoozeForId] = useState<string | null>(null)
   const [filtersOpen, setFiltersOpen] = useState(false)
+  const [viewMode, setViewMode] = useState<'list' | 'day'>('list')
 
   const projectNames = projects ? [...new Set(projects.map(p => p.name).filter(Boolean))] : []
 
@@ -267,8 +269,19 @@ export default function Taches() {
   return (
     <div>
       <PageHeader title="Tâches" action={
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn-ghost" onClick={() => setShowImport(true)}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {/* Toggle Liste | Jour */}
+          <div className="subtab-bar" style={{ padding: 3 }}>
+            <button className={`subtab${viewMode === 'list' ? ' active' : ''}`}
+              onClick={() => setViewMode('list')} style={{ padding: '5px 12px', fontSize: 12 }}>
+              Liste
+            </button>
+            <button className={`subtab${viewMode === 'day' ? ' active' : ''}`}
+              onClick={() => setViewMode('day')} style={{ padding: '5px 12px', fontSize: 12 }}>
+              Jour
+            </button>
+          </div>
+          <button className="btn-ghost mobile-hidden" onClick={() => setShowImport(true)}
             style={{ fontSize: 12, padding: '7px 12px', border: '1px solid rgba(56,189,248,.25)' }}>
             Import IA
           </button>
@@ -336,7 +349,19 @@ export default function Taches() {
         </button>
       </div>
 
-      {/* ── Formulaire ── */}
+      {/* ── Vue Jour ── */}
+      {viewMode === 'day' && (
+        <DayView
+          tasks={filtered}
+          folderById={folderById}
+          onEdit={openEdit}
+          cycleStatus={cycleStatus}
+        />
+      )}
+
+      {/* ── Vue Liste (formulaire + filtres avancés + cards) ── */}
+      {viewMode === 'list' && <>
+
       {showForm && (
         <div className="card" style={{ padding: 20, marginBottom: 20, border: '1px solid rgba(91,141,191,.3)' }}>
           <h3 style={{ fontSize: 16, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -683,6 +708,8 @@ export default function Taches() {
           )}
         </>
       }
+
+      </>}
 
       {showImport && (
         <TextImport onImport={handleImport} onClose={() => setShowImport(false)} />
