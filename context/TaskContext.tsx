@@ -1,17 +1,31 @@
 "use client"
 
 import { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react'
-import type { Task, Project, Adjustment, PomodoroState } from '@/types'
+import type { Task, Project, Adjustment, PomodoroState, Folder } from '@/types'
 import { useLS } from '@/hooks/useLocalStorage'
-import { todayISO, nextOccurrenceDate } from '@/utils/dates'
+import { todayISO, nextOccurrenceDate, genId } from '@/utils/dates'
 
 const NOTIF_ICON = '/icons/icon-192.png'
+
+// Seed intelligent : dossiers pré-créés à la 1re ouverture (rénommables/supprimables).
+// IDs stables pour rester cohérents entre rechargements tant que non modifiés.
+const DEFAULT_FOLDERS: Folder[] = [
+  { id: 'seed-ecole',    name: 'École',    color: '#38bdf8', emoji: '🎓', order: 0 },
+  { id: 'seed-business', name: 'Business', color: '#a78bfa', emoji: '💼', order: 1 },
+  { id: 'seed-perso',    name: 'Perso',    color: '#34d399', emoji: '🏠', order: 2 },
+]
 
 interface TaskContextValue {
   tasks: Task[]
   setTasks: (v: Task[] | ((prev: Task[]) => Task[])) => void
   projects: Project[]
   setProjects: (v: Project[] | ((prev: Project[]) => Project[])) => void
+  folders: Folder[]
+  setFolders: (v: Folder[] | ((prev: Folder[]) => Folder[])) => void
+  addFolder: (name: string, color: string, emoji?: string) => void
+  updateFolder: (id: string, patch: Partial<Folder>) => void
+  deleteFolder: (id: string) => void
+  moveFolder: (id: string, dir: -1 | 1) => void
   adjustments: Adjustment[]
   setAdjustments: (v: Adjustment[] | ((prev: Adjustment[]) => Adjustment[])) => void
   pomo: PomodoroState | null
@@ -26,7 +40,34 @@ const TaskContext = createContext<TaskContextValue | null>(null)
 export function TaskProvider({ children }: { children: React.ReactNode }) {
   const [tasks,       setTasks]       = useLS<Task[]>('pos_tasks',       [])
   const [projects,    setProjects]    = useLS<Project[]>('pos_projects',  [])
+  const [folders,     setFolders]     = useLS<Folder[]>('pos_folders',   DEFAULT_FOLDERS)
   const [adjustments, setAdjustments] = useLS<Adjustment[]>('pos_adjustments', [])
+
+  /* ── Dossiers (catégories colorées) — CRUD ── */
+  const addFolder = useCallback((name: string, color: string, emoji?: string) => {
+    setFolders(prev => [...prev, { id: genId(), name: name.trim(), color, emoji, order: prev.length, createdAt: todayISO() }])
+  }, [setFolders])
+
+  const updateFolder = useCallback((id: string, patch: Partial<Folder>) => {
+    setFolders(prev => prev.map(f => f.id === id ? { ...f, ...patch } : f))
+  }, [setFolders])
+
+  // Supprimer un dossier n'efface jamais les tâches : elles repassent « Sans dossier ».
+  const deleteFolder = useCallback((id: string) => {
+    setFolders(prev => prev.filter(f => f.id !== id))
+    setTasks(prev => prev.map(t => t.folderId === id ? { ...t, folderId: undefined } : t))
+  }, [setFolders, setTasks])
+
+  const moveFolder = useCallback((id: string, dir: -1 | 1) => {
+    setFolders(prev => {
+      const sorted = [...prev].sort((a, b) => a.order - b.order)
+      const i = sorted.findIndex(f => f.id === id)
+      const j = i + dir
+      if (i < 0 || j < 0 || j >= sorted.length) return prev
+      ;[sorted[i], sorted[j]] = [sorted[j], sorted[i]]
+      return sorted.map((f, idx) => ({ ...f, order: idx }))
+    })
+  }, [setFolders])
 
   /* ── Initialisation : réinitialisation des récurrentes + déplacement des retards
         en un seul effet pour éviter la race condition entre les deux passes. ── */
@@ -136,7 +177,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <TaskContext.Provider value={{ tasks, setTasks, projects, setProjects, adjustments, setAdjustments, pomo, startPomo, pausePomo, stopPomo, donePomo }}>
+    <TaskContext.Provider value={{ tasks, setTasks, projects, setProjects, folders, setFolders, addFolder, updateFolder, deleteFolder, moveFolder, adjustments, setAdjustments, pomo, startPomo, pausePomo, stopPomo, donePomo }}>
       {children}
     </TaskContext.Provider>
   )

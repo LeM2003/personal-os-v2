@@ -9,12 +9,13 @@ import EmptyState from './shared/EmptyState'
 import TextImport from './shared/TextImport'
 import SwipeRow from './shared/SwipeRow'
 import BottomSheet from './shared/BottomSheet'
+import FolderManager from './modals/FolderManager'
 import { haptic, hapticSuccess } from '../utils/haptics'
-import type { Task, TaskStatus, Subtask, Homework, Exam } from '@/types'
+import type { Task, TaskStatus, Subtask, Homework, Exam, Folder as TFolder } from '@/types'
 import {
   Pencil, X, CheckSquare, Repeat, Clock, Moon, RefreshCw,
   Folder, Calendar, AlertTriangle, Shuffle, Play,
-  ChevronUp, ChevronDown, CheckCircle2, Circle, CircleDot
+  ChevronUp, ChevronDown, CheckCircle2, Circle, CircleDot, FolderPlus
 } from 'lucide-react'
 
 const JOURS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
@@ -24,6 +25,7 @@ interface TaskForm {
   name: string
   details: string
   project: string
+  folderId: string
   priority: string
   durationH: number
   durationM: number
@@ -38,7 +40,7 @@ interface TaskForm {
 }
 
 const blank: TaskForm = {
-  name: '', details: '', project: '', priority: 'Important',
+  name: '', details: '', project: '', folderId: '', priority: 'Important',
   durationH: 0, durationM: 0,
   deadline: '', taskTime: '', flexible: false,
   recurring: false, recurrence: 'daily', recurrenceDays: [] as string[], recurrenceTime: '',
@@ -54,7 +56,10 @@ const formatDur = (mins: number) => {
 }
 
 export default function Taches() {
-  const { tasks, setTasks, adjustments, setAdjustments, pomo, startPomo, devoirs, setDevoirs, examens, setExamens, projects } = useApp()
+  const { tasks, setTasks, adjustments, setAdjustments, pomo, startPomo, devoirs, setDevoirs, examens, setExamens, projects,
+    folders, addFolder, updateFolder, deleteFolder, moveFolder } = useApp()
+  const sortedFolders = [...(folders || [])].sort((a, b) => a.order - b.order)
+  const folderById = (id?: string) => (id ? (folders || []).find(f => f.id === id) : undefined)
   const [isMobile, setIsMobile] = useState(false)
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth <= 640)
@@ -70,6 +75,8 @@ export default function Taches() {
   const [fPriority, setFPriority] = useState('Tous')
   const [fDate,     setFDate]     = useState("Aujourd'hui")
   const [fProject,  setFProject]  = useState('Tous')
+  const [fFolder,   setFFolder]   = useState('Tous')  // 'Tous' | folderId | 'none'
+  const [folderMgrOpen, setFolderMgrOpen] = useState(false)
   const [showDone,  setShowDone]  = useState(false)
   const [newSubtask, setNewSubtask] = useState('')
   const [showDetails, setShowDetails] = useState(false)
@@ -93,11 +100,11 @@ export default function Taches() {
     return false
   }
 
-  const openAdd  = () => { setEditingId(null); setForm({ ...blank, deadline: todayISO() }); setShowDetails(false); setShowForm(true) }
+  const openAdd  = () => { setEditingId(null); setForm({ ...blank, deadline: todayISO(), folderId: fFolder !== 'Tous' && fFolder !== 'none' ? fFolder : '' }); setShowDetails(false); setShowForm(true) }
   const openEdit = (task: Task) => {
     setEditingId(task.id)
     setForm({
-      name: task.name, details: task.details || '', project: task.project || '', priority: task.priority || 'Important',
+      name: task.name, details: task.details || '', project: task.project || '', folderId: task.folderId || '', priority: task.priority || 'Important',
       durationH: Math.floor((task.duration || 0) / 60),
       durationM: (task.duration || 0) % 60,
       deadline: task.deadline || '', flexible: !!task.flexible,
@@ -122,10 +129,11 @@ export default function Taches() {
     if (!form.name.trim()) return
     const duration = form.durationH * 60 + form.durationM
     const deadline = form.recurring && !form.deadline ? todayISO() : form.deadline
+    const folderId = form.folderId || undefined
     if (editingId) {
-      setTasks(p => p.map(t => t.id === editingId ? { ...t, ...form, duration, deadline } : t))
+      setTasks(p => p.map(t => t.id === editingId ? { ...t, ...form, duration, deadline, folderId } : t))
     } else {
-      setTasks(p => [...p, { ...form, duration, deadline, id: genId(), status: 'À faire' as TaskStatus, createdAt: todayISO(), lastCompletedAt: null }])
+      setTasks(p => [...p, { ...form, duration, deadline, folderId, id: genId(), status: 'À faire' as TaskStatus, createdAt: todayISO(), lastCompletedAt: null }])
     }
     closeForm()
   }
@@ -200,7 +208,13 @@ export default function Taches() {
     .filter(t => fStatus === 'Tous' || t.status === fStatus)
     .filter(t => fPriority === 'Tous' || t.priority === fPriority)
     .filter(t => fProject === 'Tous' || t.project === fProject)
+    .filter(t => fFolder === 'Tous' || (fFolder === 'none' ? !t.folderId : t.folderId === fFolder))
     .filter(matchDate)
+
+  // Compteurs par dossier (sur les tâches actives, hors filtre dossier courant)
+  const folderActiveCount = (fid: string) => tasks.filter(t =>
+    t.status !== 'Terminé' && (fid === 'none' ? !t.folderId : t.folderId === fid)
+  ).length
 
   // Separate done vs active
   const activeTasks = filtered.filter(t => t.status !== 'Terminé')
@@ -240,6 +254,7 @@ export default function Taches() {
     if (!name) return
     setTasks(prev => [...prev, {
       id: genId(), name, details: '', project: '',
+      folderId: fFolder !== 'Tous' && fFolder !== 'none' ? fFolder : undefined,
       priority: 'Important', duration: 0,
       deadline: todayISO(), flexible: false, status: 'À faire' as TaskStatus,
       recurring: false, recurrence: 'daily', recurrenceDays: [], recurrenceTime: '',
@@ -285,6 +300,40 @@ export default function Taches() {
             </button>
           )}
         </div>
+      </div>
+
+      {/* ── Barre de dossiers (catégories colorées) ── */}
+      <div style={{ display: 'flex', gap: 6, alignItems: 'center', overflowX: 'auto',
+        WebkitOverflowScrolling: 'touch', paddingBottom: 4, marginBottom: 14, scrollbarWidth: 'none' }}>
+        <button className={`filter-pill${fFolder === 'Tous' ? ' active' : ''}`}
+          onClick={() => setFFolder('Tous')} style={{ flexShrink: 0 }}>
+          Tout <span style={{ opacity: .6 }}>({tasks.filter(t => t.status !== 'Terminé').length})</span>
+        </button>
+        {sortedFolders.map(f => {
+          const active = fFolder === f.id
+          return (
+            <button key={f.id} onClick={() => setFFolder(f.id)} className="filter-pill"
+              style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 6,
+                background: active ? `${f.color}1f` : undefined,
+                borderColor: active ? f.color : undefined,
+                color: active ? f.color : undefined, fontWeight: active ? 700 : undefined }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: f.color, flexShrink: 0,
+                boxShadow: active ? `0 0 6px ${f.color}` : 'none' }} />
+              {f.emoji && <span>{f.emoji}</span>}{f.name} <span style={{ opacity: .6 }}>({folderActiveCount(f.id)})</span>
+            </button>
+          )
+        })}
+        {folderActiveCount('none') > 0 && (
+          <button onClick={() => setFFolder('none')}
+            className={`filter-pill${fFolder === 'none' ? ' active' : ''}`} style={{ flexShrink: 0 }}>
+            Sans dossier <span style={{ opacity: .6 }}>({folderActiveCount('none')})</span>
+          </button>
+        )}
+        <div style={{ width: 1, height: 18, background: 'var(--border)', flexShrink: 0, margin: '0 4px' }} />
+        <button onClick={() => setFolderMgrOpen(true)} className="filter-pill"
+          style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 5 }} title="Gérer les dossiers">
+          <FolderPlus size={13} /> Gérer
+        </button>
       </div>
 
       {/* ── Formulaire ── */}
@@ -335,6 +384,27 @@ export default function Taches() {
                 <button type="button" className="btn-ghost"
                   onClick={() => { addSubtaskToForm(newSubtask); setNewSubtask('') }}
                   disabled={!newSubtask.trim()}>+ Ajouter</button>
+              </div>
+            </div>
+            <div style={{ gridColumn: '1/-1' }}>
+              <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 6, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <Folder size={13} /> Dossier
+              </p>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                <button type="button" onClick={() => setForm({ ...form, folderId: '' })}
+                  className={`filter-pill${!form.folderId ? ' active' : ''}`}>Aucun</button>
+                {sortedFolders.map(f => {
+                  const active = form.folderId === f.id
+                  return (
+                    <button key={f.id} type="button" onClick={() => setForm({ ...form, folderId: f.id })}
+                      className="filter-pill" style={{ display: 'inline-flex', alignItems: 'center', gap: 6,
+                        background: active ? `${f.color}1f` : undefined, borderColor: active ? f.color : undefined,
+                        color: active ? f.color : undefined, fontWeight: active ? 700 : undefined }}>
+                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: f.color }} />
+                      {f.emoji && <span>{f.emoji}</span>}{f.name}
+                    </button>
+                  )
+                })}
               </div>
             </div>
             <select value={form.project} onChange={e => setForm({ ...form, project: e.target.value })}>
@@ -560,7 +630,7 @@ export default function Taches() {
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {list.map(t => (
-                    <TaskRow key={t.id} task={t}
+                    <TaskRow key={t.id} task={t} folder={folderById(t.folderId)}
                       cycleStatus={cycleStatus} del={del} toAdjust={toAdjust}
                       onComplete={completeTask}
                       onEdit={openEdit} isEditing={editingId === t.id}
@@ -597,7 +667,7 @@ export default function Taches() {
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                         {list.map(t => (
-                          <TaskRow key={t.id} task={t}
+                          <TaskRow key={t.id} task={t} folder={folderById(t.folderId)}
                             cycleStatus={cycleStatus} del={del} toAdjust={toAdjust}
                             onEdit={openEdit} isEditing={editingId === t.id}
                             onPomo={startPomo}
@@ -617,6 +687,17 @@ export default function Taches() {
       {showImport && (
         <TextImport onImport={handleImport} onClose={() => setShowImport(false)} />
       )}
+
+      {folderMgrOpen && (
+        <FolderManager
+          folders={folders || []}
+          onAdd={addFolder}
+          onUpdate={updateFolder}
+          onDelete={deleteFolder}
+          onMove={moveFolder}
+          onClose={() => setFolderMgrOpen(false)}
+        />
+      )}
     </div>
   )
 }
@@ -635,6 +716,7 @@ function recurringLabel(task: Task) {
 
 interface TaskRowProps {
   task: Task
+  folder?: TFolder
   cycleStatus: (id: string) => void
   del: (id: string) => void
   toAdjust: (task: Task) => void
@@ -652,7 +734,7 @@ interface TaskRowProps {
   isMobile?: boolean
 }
 
-function TaskRow({ task, cycleStatus, del, toAdjust, onComplete, onEdit, isEditing, onPomo, isRunning,
+function TaskRow({ task, folder, cycleStatus, del, toAdjust, onComplete, onEdit, isEditing, onPomo, isRunning,
   expanded, onToggleExpand, onToggleSubtask,
   snoozeOpen, onOpenSnooze, onSnooze, isMobile = false }: TaskRowProps) {
   const due         = daysUntil(task.deadline)
@@ -687,7 +769,7 @@ function TaskRow({ task, cycleStatus, del, toAdjust, onComplete, onEdit, isEditi
     >
     <div className={`task-card${isDone ? ' done' : ''}`}
       style={{
-        borderLeft: `3px solid ${isEditing ? '#5B8DBF' : isRunning ? '#f97316' : isDone ? '#4ade80' : task.recurring ? 'rgba(91,141,191,.4)' : 'transparent'}`,
+        borderLeft: `3px solid ${isEditing ? '#5B8DBF' : isRunning ? '#f97316' : isDone ? '#4ade80' : folder ? folder.color : task.recurring ? 'rgba(91,141,191,.4)' : 'transparent'}`,
         background: isEditing ? 'rgba(91,141,191,.04)' : isRunning ? 'rgba(249,115,22,.04)' : undefined,
         flexWrap: 'wrap'
       }}>
@@ -715,6 +797,12 @@ function TaskRow({ task, cycleStatus, del, toAdjust, onComplete, onEdit, isEditi
           </p>
         )}
         <div style={{ display: 'flex', gap: 10, marginTop: 3, flexWrap: 'wrap', alignItems: 'center' }}>
+          {folder && (
+            <span style={{ fontSize: 11, color: folder.color, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: folder.color, flexShrink: 0 }} />
+              {folder.emoji && <span>{folder.emoji}</span>}{folder.name}
+            </span>
+          )}
           {task.project        && <span style={{ fontSize: 11, color: 'var(--muted)', display: 'inline-flex', alignItems: 'center', gap: 4 }}><Folder size={11} /> {task.project}</span>}
           {durLabel            && <span style={{ fontSize: 11, color: 'var(--muted)', display: 'inline-flex', alignItems: 'center', gap: 4 }}><Clock size={11} /> {durLabel}</span>}
           {task.taskTime && !task.recurring && <span style={{ fontSize: 11, color: 'var(--accent-1)', display: 'inline-flex', alignItems: 'center', gap: 4 }}><Clock size={11} /> {task.taskTime}</span>}

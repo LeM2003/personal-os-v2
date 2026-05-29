@@ -10,6 +10,15 @@ export interface Subtask {
   title?: string
 }
 
+export interface Folder {
+  id: string
+  name: string
+  color: string
+  emoji?: string
+  order: number
+  createdAt?: string
+}
+
 export interface Task {
   id: string
   name: string
@@ -31,6 +40,7 @@ export interface Task {
   subtasks?: Subtask[]
   flexible?: boolean
   linkedDevoirId?: string
+  folderId?: string
 }
 
 export interface Adjustment {
