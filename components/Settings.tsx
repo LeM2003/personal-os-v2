@@ -10,7 +10,7 @@ import {
 import FeedbackModal from './modals/FeedbackModal'
 
 // 👇 Remplis ces deux champs quand tu as les comptes
-const WAVE_NUMBER  : string = ''   // ex: '+221 77 000 00 00'
+const WAVE_NUMBER  : string = '+221783019983'
 const KOFI_URL     : string = ''   // ex: 'https://ko-fi.com/mouhamadou'
 const LINKEDIN_URL : string = 'https://www.linkedin.com/in/mouhamadou-diouf-364309276'
 
