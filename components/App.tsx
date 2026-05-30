@@ -19,6 +19,7 @@ import {
   BarChart3, RefreshCw, Search, User, Bell, BellOff, Save,
   Sun, Moon, LogOut, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Settings as SettingsIcon
 } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 
 const LandingPage = lazy(() => import('./LandingPage'))
 const Onboarding  = lazy(() => import('./Onboarding'))
@@ -94,10 +95,14 @@ export default function App() {
     try { return localStorage.getItem('onboardingDone') === '1' } catch { return false }
   })
 
-  const logout = () => {
-    if (typeof window !== 'undefined' && confirm('Veux-tu te deconnecter ? Tes donnees restent sauvegardees — tu pourras te reconnecter avec le meme prenom.')) {
-      setLoggedOut(true)
-    }
+  const logout = async () => {
+    if (typeof window === 'undefined') return
+    if (!confirm('Veux-tu te déconnecter ? Tes données locales restent sauvegardées.')) return
+    try {
+      const supabase = createClient()
+      await supabase.auth.signOut()
+    } catch { /* ignore — déconnexion locale quand même */ }
+    setLoggedOut(true)
   }
   const handleStart = (formData: typeof profile) => {
     setProfile(formData)

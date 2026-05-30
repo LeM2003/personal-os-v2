@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import InstallPrompt from './shared/InstallPrompt'
+import { createClient } from '@/lib/supabase/client'
 
 const PROBLEMS = [
   { icon: '📱', text: 'Tes notes dans WhatsApp. Tes deadlines dans ta tête. Ton budget, nulle part.' },
@@ -36,25 +37,59 @@ const CTA_BTN = {
 
 import type { UserProfile } from '@/types'
 
-export default function LandingPage({ onStart }: { onStart: (profile: UserProfile) => void }) {
-  const [form, setForm] = useState({ prenom: '', nom: '', role: 'Étudiant-entrepreneur', mode: 'les-deux' as const })
-  const [showSetup, setShowSetup] = useState(false)
-  const [showSticky, setShowSticky] = useState(false)
+const ROLE_TO_MODE: Record<string, 'etudiant' | 'entrepreneur' | 'les-deux' | 'custom'> = {
+  'Étudiant': 'etudiant', 'Entrepreneur': 'entrepreneur',
+  'Étudiant-entrepreneur': 'les-deux', 'Cadre': 'entrepreneur',
+  'Directeur': 'entrepreneur', 'Freelance': 'entrepreneur',
+  'Parent': 'custom', 'Autre': 'custom',
+}
 
-  const save = () => {
-    if (!form.prenom.trim()) return
-    const roleToMode: Record<string, 'etudiant' | 'entrepreneur' | 'les-deux' | 'custom'> = {
-      'Étudiant': 'etudiant',
-      'Entrepreneur': 'entrepreneur',
-      'Étudiant-entrepreneur': 'les-deux',
-      'Cadre': 'entrepreneur',
-      'Directeur': 'entrepreneur',
-      'Freelance': 'entrepreneur',
-      'Parent': 'custom',
-      'Autre': 'custom',
+export default function LandingPage({ onStart }: { onStart: (profile: UserProfile) => void }) {
+  const [showSetup,  setShowSetup]  = useState(false)
+  const [showSticky, setShowSticky] = useState(false)
+  const [authMode,   setAuthMode]   = useState<'signin' | 'signup'>('signup')
+  const [authLoading, setAuthLoading] = useState(false)
+  const [authError,  setAuthError]  = useState('')
+  const [form, setForm] = useState({
+    email: '', password: '', confirmPassword: '',
+    prenom: '', nom: '', role: 'Étudiant-entrepreneur',
+  })
+
+  const handleAuth = async () => {
+    setAuthError('')
+    if (!form.email.trim() || !form.password) { setAuthError('Email et mot de passe requis.'); return }
+    if (authMode === 'signup' && !form.prenom.trim()) { setAuthError('Ton prénom est requis.'); return }
+    if (authMode === 'signup' && form.password !== form.confirmPassword) { setAuthError('Les mots de passe ne correspondent pas.'); return }
+    if (form.password.length < 6) { setAuthError('Le mot de passe doit faire au moins 6 caractères.'); return }
+
+    setAuthLoading(true)
+    const supabase = createClient()
+
+    if (authMode === 'signup') {
+      const { data, error } = await supabase.auth.signUp({
+        email: form.email.trim(),
+        password: form.password,
+        options: { data: { full_name: `${form.prenom.trim()} ${form.nom.trim()}`.trim() } },
+      })
+      if (error) { setAuthError(error.message); setAuthLoading(false); return }
+      // Confirmation email requise → on prévient l'utilisateur
+      if (!data.session) {
+        setAuthError(''); setAuthLoading(false)
+        alert('🎉 Compte créé ! Vérifie ton email pour confirmer, puis connecte-toi.')
+        setAuthMode('signin'); return
+      }
+      onStart({ prenom: form.prenom.trim(), nom: form.nom.trim() || undefined, mode: ROLE_TO_MODE[form.role] || 'les-deux' })
+    } else {
+      const { error } = await supabase.auth.signInWithPassword({ email: form.email.trim(), password: form.password })
+      if (error) {
+        setAuthError(error.message === 'Invalid login credentials' ? 'Email ou mot de passe incorrect.' : error.message)
+        setAuthLoading(false); return
+      }
+      // Connexion réussie — récupère le profil Supabase si dispo, sinon prénom de l'email
+      const prenom = form.email.split('@')[0]
+      onStart({ prenom, mode: 'les-deux' })
     }
-    const mode = roleToMode[form.role] || 'les-deux'
-    onStart({ prenom: form.prenom, nom: form.nom, mode })
+    setAuthLoading(false)
   }
 
   useEffect(() => {
@@ -70,7 +105,7 @@ export default function LandingPage({ onStart }: { onStart: (profile: UserProfil
       <header style={{ padding: 'clamp(48px, 7vw, 80px) 20px clamp(32px, 5vw, 56px)', textAlign: 'center', maxWidth: 720, margin: '0 auto', position: 'relative', zIndex: 1 }}>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(56,189,248,.08)', border: '1px solid rgba(56,189,248,.2)', borderRadius: 999, padding: '6px 16px', marginBottom: 28 }}>
           <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#4ade80', boxShadow: '0 0 6px #4ade80', flexShrink: 0 }} />
-          <span style={{ fontSize: 12, color: 'var(--accent-1)', fontWeight: 600, letterSpacing: .3 }}>Gratuit · Sans compte · Tes données chez toi</span>
+          <span style={{ fontSize: 12, color: 'var(--accent-1)', fontWeight: 600, letterSpacing: .3 }}>Gratuit · Multi-appareils · Tes données sécurisées</span>
         </div>
 
         <h1 style={{ fontFamily: 'var(--font-fraunces, Fraunces)', fontSize: 'clamp(28px, 6.5vw, 52px)', fontWeight: 700, lineHeight: 1.1, marginBottom: 20, letterSpacing: '-0.03em' }}>
@@ -94,7 +129,7 @@ export default function LandingPage({ onStart }: { onStart: (profile: UserProfil
           <InstallPrompt variant="button" />
         </div>
         <p style={{ fontSize: 11, color: 'var(--muted)', letterSpacing: .3 }}>
-          Tes données restent dans ton navigateur. Rien ne part ailleurs.
+          Données sécurisées · Synchronisées sur tous tes appareils
         </p>
       </header>
 
@@ -203,7 +238,7 @@ export default function LandingPage({ onStart }: { onStart: (profile: UserProfil
           Trois étapes. C'est tout.
         </h2>
         {[
-          { step: '1', title: 'Ton prénom', desc: 'Pas d\'email, pas de mot de passe. Juste toi.' },
+          { step: '1', title: 'Ton compte', desc: 'Email et mot de passe. Tes données sécurisées, accessibles sur tous tes appareils.' },
           { step: '2', title: 'Ton dashboard', desc: 'Une page vide qui n\'attend que tes vraies tâches, tes vraies dépenses, tes vrais projets.' },
           { step: '3', title: 'Ta vie, en main', desc: 'Tout reste dans ton navigateur. Même hors ligne. Même si tu changes d\'avis demain.' },
         ].map(s => (
@@ -301,39 +336,96 @@ export default function LandingPage({ onStart }: { onStart: (profile: UserProfil
         </button>
       </div>
 
-      {/* ── SETUP MODAL ── */}
+      {/* ── AUTH MODAL ── */}
       {showSetup && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.75)', backdropFilter: 'blur(6px)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: 16 }}
           onClick={() => setShowSetup(false)}>
           <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16,
-            padding: 28, width: '100%', maxWidth: 400 }} onClick={e => e.stopPropagation()}>
-            <h3 style={{ fontFamily: 'Fraunces', fontSize: 22, marginBottom: 4, color: '#5B8DBF' }}>
-              Content de te voir.
-            </h3>
-            <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 20, lineHeight: 1.6 }}>
-              Juste ton prénom pour commencer. Rien d'autre, rien ne part ailleurs.
-            </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <input value={form.prenom} onChange={e => setForm({ ...form, prenom: e.target.value })}
-                placeholder="Prénom *" autoFocus
-                onKeyDown={e => e.key === 'Enter' && save()} />
-              <input value={form.nom} onChange={e => setForm({ ...form, nom: e.target.value })}
-                placeholder="Nom (optionnel)"
-                onKeyDown={e => e.key === 'Enter' && save()} />
-              <select value={form.role} onChange={e => setForm({ ...form, role: e.target.value })}>
-                <option>Étudiant-entrepreneur</option><option>Étudiant</option>
-                <option>Entrepreneur</option><option>Cadre</option><option>Directeur</option>
-                <option>Freelance</option><option>Parent</option><option>Autre</option>
-              </select>
+            padding: 28, width: '100%', maxWidth: 420, maxHeight: '90vh', overflowY: 'auto' }}
+            onClick={e => e.stopPropagation()}>
+
+            {/* Toggle signin / signup */}
+            <div style={{ display: 'flex', gap: 4, background: 'var(--input-bg)', borderRadius: 10, padding: 4, marginBottom: 20 }}>
+              {(['signup', 'signin'] as const).map(mode => (
+                <button key={mode} type="button"
+                  onClick={() => { setAuthMode(mode); setAuthError('') }}
+                  style={{ flex: 1, padding: '8px 0', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 13,
+                    fontWeight: 700, fontFamily: 'var(--font-dm-sans, DM Sans)',
+                    background: authMode === mode ? 'linear-gradient(135deg, var(--accent-1), var(--accent-2))' : 'transparent',
+                    color: authMode === mode ? '#fff' : 'var(--muted)',
+                    transition: 'all var(--dur-base)',
+                  }}>
+                  {mode === 'signup' ? 'Créer un compte' : 'Se connecter'}
+                </button>
+              ))}
             </div>
-            <button onClick={save} disabled={!form.prenom.trim()}
-              style={{ width: '100%', marginTop: 20, background: '#5B8DBF',
-                color: '#0B1220', border: 'none', borderRadius: 10, padding: '14px 20px', fontSize: 15,
-                fontWeight: 700, fontFamily: 'Fraunces', cursor: 'pointer',
-                opacity: form.prenom.trim() ? 1 : .5, transition: 'opacity .2s' }}>
-              On y va
+
+            <h3 style={{ fontFamily: 'var(--font-fraunces, Fraunces)', fontSize: 20, marginBottom: 4, color: 'var(--accent-1)' }}>
+              {authMode === 'signup' ? 'Content de te voir.' : 'Bon retour !'}
+            </h3>
+            <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 18, lineHeight: 1.6 }}>
+              {authMode === 'signup'
+                ? 'Crée ton compte pour accéder à Personal OS sur tous tes appareils.'
+                : 'Connecte-toi pour retrouver ton tableau de bord.'}
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {/* Signup uniquement : prénom + nom + rôle */}
+              {authMode === 'signup' && <>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input value={form.prenom} onChange={e => setForm({ ...form, prenom: e.target.value })}
+                    placeholder="Prénom *" autoFocus style={{ flex: 1 }}
+                    onKeyDown={e => e.key === 'Enter' && handleAuth()} />
+                  <input value={form.nom} onChange={e => setForm({ ...form, nom: e.target.value })}
+                    placeholder="Nom (optionnel)" style={{ flex: 1 }}
+                    onKeyDown={e => e.key === 'Enter' && handleAuth()} />
+                </div>
+                <select value={form.role} onChange={e => setForm({ ...form, role: e.target.value })}>
+                  <option>Étudiant-entrepreneur</option><option>Étudiant</option>
+                  <option>Entrepreneur</option><option>Cadre</option>
+                  <option>Freelance</option><option>Parent</option><option>Autre</option>
+                </select>
+              </>}
+
+              {/* Email + mot de passe */}
+              <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })}
+                placeholder="Email *" autoFocus={authMode === 'signin'}
+                onKeyDown={e => e.key === 'Enter' && handleAuth()} />
+              <input type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })}
+                placeholder="Mot de passe * (6 caractères min)"
+                onKeyDown={e => e.key === 'Enter' && handleAuth()} />
+              {authMode === 'signup' && (
+                <input type="password" value={form.confirmPassword}
+                  onChange={e => setForm({ ...form, confirmPassword: e.target.value })}
+                  placeholder="Confirmer le mot de passe *"
+                  onKeyDown={e => e.key === 'Enter' && handleAuth()} />
+              )}
+            </div>
+
+            {/* Message d'erreur */}
+            {authError && (
+              <div style={{ marginTop: 12, padding: '10px 14px', borderRadius: 8,
+                background: 'rgba(248,113,113,.08)', border: '1px solid rgba(248,113,113,.25)',
+                fontSize: 13, color: '#fca5a5' }}>
+                {authError}
+              </div>
+            )}
+
+            <button onClick={handleAuth} disabled={authLoading}
+              style={{ width: '100%', marginTop: 16,
+                background: 'linear-gradient(135deg, var(--accent-1), var(--accent-2))',
+                color: '#fff', border: 'none', borderRadius: 10, padding: '13px 20px', fontSize: 15,
+                fontWeight: 700, fontFamily: 'var(--font-fraunces, Fraunces)', cursor: authLoading ? 'not-allowed' : 'pointer',
+                opacity: authLoading ? .6 : 1, transition: 'opacity .2s' }}>
+              {authLoading ? '…' : authMode === 'signup' ? 'Créer mon compte' : 'Se connecter'}
             </button>
+
+            <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 12, textAlign: 'center', lineHeight: 1.5 }}>
+              {authMode === 'signup'
+                ? 'En créant un compte tu acceptes que tes données soient stockées de façon sécurisée.'
+                : 'Tes données sont chiffrées et sécurisées.'}
+            </p>
           </div>
         </div>
       )}
