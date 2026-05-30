@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react'
 import { Download, Share, Plus, X } from 'lucide-react'
 
-const DISMISS_KEY = 'pos-install-dismissed'
+const DISMISS_KEY    = 'pos-install-dismissed-at'
+const DISMISS_DAYS   = 7  // re-propose après 7 jours
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>
@@ -19,11 +20,15 @@ function isStandalone() {
     || (window.navigator as Navigator & { standalone?: boolean }).standalone === true
 }
 
-export default function InstallPrompt({ variant = 'banner' }: { variant?: 'banner' | 'inline' | 'button' }) {
+export default function InstallPrompt({ variant = 'banner' }: { variant?: 'banner' | 'inline' | 'button' | 'card' }) {
   const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null)
   const [showIOS, setShowIOS] = useState(false)
   const [dismissed, setDismissed] = useState(() => {
-    try { return localStorage.getItem(DISMISS_KEY) === '1' } catch { return false }
+    try {
+      const ts = localStorage.getItem(DISMISS_KEY)
+      if (!ts) return false
+      return Date.now() - Number(ts) < DISMISS_DAYS * 86_400_000
+    } catch { return false }
   })
 
   useEffect(() => {
@@ -58,11 +63,52 @@ export default function InstallPrompt({ variant = 'banner' }: { variant?: 'banne
 
   const handleDismiss = () => {
     setDismissed(true)
-    try { localStorage.setItem(DISMISS_KEY, '1') } catch {}
+    try { localStorage.setItem(DISMISS_KEY, String(Date.now())) } catch {}
   }
 
   const canShow = deferred || isIOS()
   if (!canShow) return null
+
+  // ── Card variant (Dashboard — contextuel, non-intrusif) ──
+  if (variant === 'card') {
+    return (
+      <>
+        <div style={{
+          marginBottom: 16, borderRadius: 14, overflow: 'hidden',
+          background: 'linear-gradient(135deg, rgba(56,189,248,.06), rgba(129,140,248,.04))',
+          border: '1px solid rgba(56,189,248,.18)',
+          display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px',
+        }}>
+          <div style={{ fontSize: 28, flexShrink: 0 }}>📲</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ fontFamily: 'var(--font-fraunces, Fraunces)', fontSize: 14, fontWeight: 700, margin: 0 }}>
+              Installe l&apos;app pour tes rappels
+            </p>
+            <p style={{ fontSize: 12, color: 'var(--muted)', margin: '2px 0 0', lineHeight: 1.4 }}>
+              Reçois tes notifications même quand tu n&apos;as pas le navigateur ouvert.
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+            <button onClick={handleInstall}
+              style={{
+                background: 'linear-gradient(135deg, var(--accent-1), var(--accent-2))',
+                color: '#fff', border: 'none', borderRadius: 8,
+                padding: '7px 14px', fontSize: 12, fontWeight: 700,
+                fontFamily: 'var(--font-dm-sans, DM Sans)', cursor: 'pointer',
+                whiteSpace: 'nowrap',
+              }}>
+              Installer
+            </button>
+            <button onClick={handleDismiss} aria-label="Masquer"
+              style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', padding: 4 }}>
+              <X size={15} />
+            </button>
+          </div>
+        </div>
+        {showIOS && <IOSInstructions onClose={() => setShowIOS(false)} />}
+      </>
+    )
+  }
 
   // ── Button variant (embedded in landing) ──
   if (variant === 'button') {

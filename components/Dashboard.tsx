@@ -9,6 +9,7 @@ import { computeNextRenewal } from '../utils/subscriptions'
 import type { Task, Exam, Homework, Subscription, AlertItem } from '@/types'
 import StatCard from './shared/StatCard'
 import MorningBriefing from './shared/MorningBriefing'
+import InstallPrompt from './shared/InstallPrompt'
 import EmptyState from './shared/EmptyState'
 import SegmentedControl from './shared/SegmentedControl'
 import AnimatedCounter from './shared/AnimatedCounter'
@@ -167,6 +168,9 @@ export default function Dashboard() {
           </h1>
         </div>
       </header>
+
+      {/* ── Carte installation PWA (contextuelle, 7j re-propose) ── */}
+      <InstallPrompt variant="card" />
 
       {/* ── Briefing matin IA ── */}
       <MorningBriefing
