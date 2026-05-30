@@ -4,6 +4,8 @@ import { createContext, useContext, useState, useEffect, useRef, useCallback } f
 import type { Task, Project, Adjustment, PomodoroState, Folder } from '@/types'
 import { useLS } from '@/hooks/useLocalStorage'
 import { todayISO, nextOccurrenceDate, genId } from '@/utils/dates'
+import { createClient } from '@/lib/supabase/client'
+import { taskToRow, rowToTask, folderToRow, rowToFolder } from '@/lib/supabase/mappers'
 
 const NOTIF_ICON = '/icons/icon-192.png'
 
@@ -68,6 +70,59 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
       return sorted.map((f, idx) => ({ ...f, order: idx }))
     })
   }, [setFolders])
+
+  /* ── Supabase sync : hydration au mount + push debounced sur changements ── */
+  const isHydrating = useRef(false)   // évite de re-pusher ce qu'on vient de tirer
+  const pushTimer   = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // PULL — Au montage, si l'user est connecté, Supabase gagne sur localStorage
+  useEffect(() => {
+    async function hydrate() {
+      try {
+        const supabase = createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return
+
+        isHydrating.current = true
+
+        // Folders d'abord (les tâches y font référence)
+        const { data: remoteFolders } = await supabase
+          .from('folders').select('*').eq('user_id', user.id).order('position')
+        if (remoteFolders && remoteFolders.length > 0)
+          setFolders(remoteFolders.map(rowToFolder))
+
+        // Tasks
+        const { data: remoteTasks } = await supabase
+          .from('tasks').select('*').eq('user_id', user.id).order('created_at')
+        if (remoteTasks && remoteTasks.length > 0)
+          setTasks(remoteTasks.map(rowToTask))
+
+        // Laisser les effets se propager avant d'autoriser le push
+        setTimeout(() => { isHydrating.current = false }, 200)
+      } catch { /* offline ou non connecté — on garde localStorage */ }
+    }
+    hydrate()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // PUSH — À chaque changement de tasks ou folders, on débounce vers Supabase
+  useEffect(() => {
+    if (isHydrating.current) return
+    if (pushTimer.current) clearTimeout(pushTimer.current)
+    pushTimer.current = setTimeout(async () => {
+      try {
+        const supabase = createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return
+
+        if (tasks.length > 0)
+          await supabase.from('tasks').upsert(tasks.map(t => taskToRow(t, user.id)), { onConflict: 'id' })
+
+        if (folders.length > 0)
+          await supabase.from('folders').upsert(folders.map(f => folderToRow(f, user.id)), { onConflict: 'id' })
+      } catch { /* offline — localStorage persiste déjà */ }
+    }, 3000) // 3s debounce — évite de spammer Supabase à chaque frappe
+  }, [tasks, folders]) // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ── Initialisation : réinitialisation des récurrentes + déplacement des retards
         en un seul effet pour éviter la race condition entre les deux passes. ── */

@@ -8,6 +8,7 @@ import { startNotificationLoop, stopNotificationLoop } from '@/utils/notificatio
 import { TaskProvider, useTaskContext } from './TaskContext'
 import { FinanceProvider, useFinanceContext } from './FinanceContext'
 import { EducationProvider, useEducationContext } from './EducationContext'
+import { createClient } from '@/lib/supabase/client'
 
 const NOTIF_ICON = '/icons/icon-192.png'
 
@@ -86,6 +87,29 @@ function AppCoreProvider({ children }: { children: React.ReactNode }) {
   const [profileModal,    setProfileModal]    = useState(false)
   const [backupModal,     setBackupModal]     = useState(false)
   const importRef = useRef<HTMLInputElement>(null)
+
+  /* ── Supabase : sync profil → table profiles ── */
+  useEffect(() => {
+    if (!profile) return
+    async function syncProfile() {
+      try {
+        const supabase = createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return
+        await supabase.from('profiles').upsert({
+          id: user.id,
+          email: user.email ?? '',
+          full_name: `${profile!.prenom}${profile!.nom ? ' ' + profile!.nom : ''}`.trim(),
+          profile_mode: profile!.mode === 'etudiant' ? 'student'
+            : profile!.mode === 'entrepreneur' ? 'professional'
+            : profile!.mode === 'les-deux' ? 'both' : 'custom',
+          custom_modules: profile!.customTabs ?? [],
+          onboarding_done: true,
+        }, { onConflict: 'id' })
+      } catch { /* offline — localStorage persiste */ }
+    }
+    syncProfile()
+  }, [profile])
 
   /* ── Apparence : thème (dark/light/system) ── */
   useEffect(() => {
