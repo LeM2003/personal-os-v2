@@ -1,10 +1,18 @@
 "use client"
 
+import { useState } from 'react'
 import { useApp } from '@/context/AppContext'
 import { haptic } from '@/utils/haptics'
 import {
   Sun, Moon, Monitor, Check, Sparkles, User, Save, RotateCcw,
+  MessageSquare, Coffee, ExternalLink,
 } from 'lucide-react'
+import FeedbackModal from './modals/FeedbackModal'
+
+// 👇 Remplis ces deux champs quand tu as les comptes
+const WAVE_NUMBER  : string = ''   // ex: '+221 77 000 00 00'
+const KOFI_URL     : string = ''   // ex: 'https://ko-fi.com/mouhamadou'
+const LINKEDIN_URL : string = 'https://www.linkedin.com/in/mouhamadou-diouf-364309276'
 
 const THEMES = [
   { id: 'dark',   label: 'Sombre', Icon: Moon },
@@ -94,6 +102,7 @@ export default function Settings() {
     reduceMotionPref, setReduceMotionPref, defaultTab, setDefaultTab,
     setProfileModal, setBackupModal, profile,
   } = useApp()
+  const [feedbackOpen, setFeedbackOpen] = useState(false)
 
   const resetAppearance = () => {
     if (typeof window !== 'undefined' && !confirm('Réinitialiser l\'apparence (thème, accent, taille, animations) ?')) return
@@ -218,6 +227,59 @@ export default function Settings() {
           </button>
         </Row>
       </Section>
+
+      {/* ── Soutenir & Contact ── */}
+      <Section title="Soutenir & Contact" sub="Cet app est un projet indépendant. Chaque retour et chaque soutien compte.">
+        <Row label="Donner mon avis" hint="Bug, idée, compliment — je lis tout.">
+          <button className="btn-ghost" onClick={() => { haptic(3); setFeedbackOpen(true) }}
+            style={{ fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <MessageSquare size={13} /> Écrire
+          </button>
+        </Row>
+
+        {(WAVE_NUMBER || KOFI_URL) && (
+          <Row label="Offrir un café ☕" hint="Si Personal OS t'aide, tu peux me soutenir — sans obligation.">
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {WAVE_NUMBER && (
+                <a href={`https://wave.com/send?phone=${WAVE_NUMBER.replace(/\s/g,'')}`}
+                  target="_blank" rel="noreferrer"
+                  className="btn-ghost"
+                  style={{ fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 6, textDecoration: 'none' }}>
+                  <Coffee size={13} /> Wave
+                </a>
+              )}
+              {KOFI_URL && (
+                <a href={KOFI_URL} target="_blank" rel="noreferrer"
+                  className="btn-ghost"
+                  style={{ fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 6, textDecoration: 'none' }}>
+                  <Coffee size={13} /> Ko-fi
+                </a>
+              )}
+            </div>
+          </Row>
+        )}
+
+        <Row label="Me contacter" hint="LinkedIn — pour collaborations, questions, retours longs.">
+          <a href={LINKEDIN_URL} target="_blank" rel="noreferrer"
+            className="btn-ghost"
+            style={{ fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 6, textDecoration: 'none' }}>
+            <ExternalLink size={13} /> LinkedIn
+          </a>
+        </Row>
+
+        {/* Signature builder */}
+        <div style={{ marginTop: 4, padding: '14px 16px', borderRadius: 12,
+          background: 'linear-gradient(135deg, var(--gold-dim), transparent)',
+          border: '1px solid rgba(56,189,248,.15)' }}>
+          <p style={{ fontSize: 12.5, color: 'var(--muted)', margin: 0, lineHeight: 1.7, fontStyle: 'italic' }}>
+            Personal OS est construit avec passion par{' '}
+            <span style={{ color: 'var(--text)', fontStyle: 'normal', fontWeight: 600 }}>Mouhamadou Diouf</span>,
+            étudiant en master IA à Dakar. Gratuit pendant que je construis.
+          </p>
+        </div>
+      </Section>
+
+      {feedbackOpen && <FeedbackModal onClose={() => setFeedbackOpen(false)} />}
     </div>
   )
 }
