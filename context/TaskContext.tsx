@@ -58,6 +58,11 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
   const deleteFolder = useCallback((id: string) => {
     setFolders(prev => prev.filter(f => f.id !== id))
     setTasks(prev => prev.map(t => t.folderId === id ? { ...t, folderId: undefined } : t))
+    // Propagation du delete en base Supabase (fire-and-forget, offline-safe)
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) supabase.from('folders').delete().eq('id', id).eq('user_id', user.id)
+    }).catch(() => {})
   }, [setFolders, setTasks])
 
   const moveFolder = useCallback((id: string, dir: -1 | 1) => {

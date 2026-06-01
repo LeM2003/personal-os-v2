@@ -11,6 +11,7 @@ import SwipeRow from './shared/SwipeRow'
 import BottomSheet from './shared/BottomSheet'
 import FolderManager from './modals/FolderManager'
 import DayView from './DayView'
+import { createClient } from '@/lib/supabase/client'
 import { haptic, hapticSuccess } from '../utils/haptics'
 import type { Task, TaskStatus, Subtask, Homework, Exam, Folder as TFolder } from '@/types'
 import {
@@ -183,7 +184,14 @@ export default function Taches() {
     return { ...t, status: 'Terminé' as TaskStatus }
   }))
 
-  const del      = (id: string) => setTasks(p => p.filter(t => t.id !== id))
+  const del = (id: string) => {
+    setTasks(p => p.filter(t => t.id !== id))
+    // Propagation delete Supabase (fire-and-forget, offline-safe)
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) supabase.from('tasks').delete().eq('id', id).eq('user_id', user.id)
+    }).catch(() => {})
+  }
   const toAdjust = (task: Task) => {
     setTasks(p => p.filter(t => t.id !== task.id))
     setAdjustments(p => [...p, {
