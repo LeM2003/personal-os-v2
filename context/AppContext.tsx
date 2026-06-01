@@ -173,6 +173,21 @@ function AppCoreProvider({ children }: { children: React.ReactNode }) {
     if (perm === 'granted') {
       setNotifEnabled(true)
       new Notification('Personal OS 🔔', { body: 'Notifications activées !', icon: NOTIF_ICON })
+      // Abonne l'appareil au Web Push VAPID
+      try {
+        if ('serviceWorker' in navigator && process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) {
+          const reg = await navigator.serviceWorker.ready
+          const sub = await reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+          })
+          await fetch('/api/push/subscribe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(sub.toJSON()),
+          })
+        }
+      } catch { /* Web Push non supporté ou blocqué — les notifs locales restent actives */ }
     } else {
       setNotifEnabled(false)
       alert('Permission refusée. Active les notifications dans les paramètres de ton navigateur.')

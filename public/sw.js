@@ -69,6 +69,23 @@ self.addEventListener('fetch', event => {
   event.respondWith(fetch(event.request).catch(() => caches.match(event.request)))
 })
 
+// ── Web Push : réception des notifications serveur (VAPID) ──────────────────
+self.addEventListener('push', event => {
+  if (!event.data) return
+  let payload = { title: 'Personal OS', body: '', icon: '/icons/icon-192.png', badge: '/icons/icon-192.png', url: '/' }
+  try { Object.assign(payload, event.data.json()) } catch { payload.body = event.data.text() }
+  event.waitUntil(
+    self.registration.showNotification(payload.title, {
+      body:  payload.body,
+      icon:  payload.icon,
+      badge: payload.badge,
+      data:  { url: payload.url },
+      vibrate: [100, 50, 100],
+      requireInteraction: false,
+    })
+  )
+})
+
 // Notification click → ouvrir l'app
 self.addEventListener('notificationclick', event => {
   event.notification.close()
