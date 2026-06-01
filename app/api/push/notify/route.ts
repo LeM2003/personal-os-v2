@@ -2,13 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import webpush from 'web-push'
 import { createClient } from '@/lib/supabase/server'
 
-// Configure VAPID une fois au niveau module
-webpush.setVapidDetails(
-  'mailto:metzod237@gmail.com',
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
-  process.env.VAPID_PRIVATE_KEY!
-)
-
 // GET — appelé par le cron Vercel chaque matin à 07h00 UTC (Dakar)
 // Vercel envoie Authorization: Bearer {CRON_SECRET}
 export async function GET(req: NextRequest) {
@@ -16,6 +9,12 @@ export async function GET(req: NextRequest) {
   if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
+
+  // Configure VAPID ici (runtime) — pas au niveau module pour éviter l'échec au build
+  const pubKey  = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+  const privKey = process.env.VAPID_PRIVATE_KEY
+  if (!pubKey || !privKey) return NextResponse.json({ error: 'VAPID keys missing' }, { status: 500 })
+  webpush.setVapidDetails('mailto:metzod237@gmail.com', pubKey, privKey)
 
   try {
     const supabase = await createClient()
