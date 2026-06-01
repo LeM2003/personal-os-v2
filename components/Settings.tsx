@@ -1,13 +1,14 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useApp } from '@/context/AppContext'
 import { haptic } from '@/utils/haptics'
 import {
   Sun, Moon, Monitor, Check, Sparkles, User, Save, RotateCcw,
-  MessageSquare, Coffee, ExternalLink,
+  MessageSquare, Coffee, ExternalLink, Inbox,
 } from 'lucide-react'
 import FeedbackModal from './modals/FeedbackModal'
+import { createClient } from '@/lib/supabase/client'
 
 // 👇 Remplis ces deux champs quand tu as les comptes
 const WAVE_NUMBER  : string = '+221783019983'
@@ -103,6 +104,26 @@ export default function Settings() {
     setProfileModal, setBackupModal, profile,
   } = useApp()
   const [feedbackOpen, setFeedbackOpen] = useState(false)
+  const [newFeedbacks, setNewFeedbacks] = useState(0)
+  const [isAdmin, setIsAdmin] = useState(false)
+
+  // Fetch count feedbacks non-lus (visible uniquement si superadmin/admin)
+  useEffect(() => {
+    async function fetchFeedbacks() {
+      try {
+        const supabase = createClient()
+        const { data: prof } = await supabase
+          .from('profiles').select('role').single()
+        if (!prof || !['admin', 'superadmin'].includes(prof.role)) return
+        setIsAdmin(true)
+        const { count } = await supabase
+          .from('feedback').select('*', { count: 'exact', head: true })
+          .eq('status', 'new')
+        setNewFeedbacks(count ?? 0)
+      } catch { /* ignore */ }
+    }
+    fetchFeedbacks()
+  }, [])
 
   const resetAppearance = () => {
     if (typeof window !== 'undefined' && !confirm('Réinitialiser l\'apparence (thème, accent, taille, animations) ?')) return
@@ -238,15 +259,29 @@ export default function Settings() {
         </Row>
 
         {(WAVE_NUMBER || KOFI_URL) && (
-          <Row label="Offrir un café ☕" hint="Si Personal OS t'aide, tu peux me soutenir — sans obligation.">
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <Row label="Offrir un café ☕" hint="Si Personal OS t'aide, tu peux me soutenir — sans obligation." stack>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {WAVE_NUMBER && (
-                <a href={`https://wave.com/send?phone=${WAVE_NUMBER.replace(/\s/g,'')}`}
-                  target="_blank" rel="noreferrer"
-                  className="btn-ghost"
-                  style={{ fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 6, textDecoration: 'none' }}>
-                  <Coffee size={13} /> Wave
-                </a>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10,
+                  background: 'var(--surface-deep)', border: '1px solid var(--border)',
+                  borderRadius: 10, padding: '10px 14px' }}>
+                  <span style={{ fontSize: 20 }}>🌊</span>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>Wave</p>
+                    <p style={{ margin: 0, fontSize: 12, color: 'var(--accent-1)', fontFamily: 'monospace' }}>
+                      {WAVE_NUMBER}
+                    </p>
+                  </div>
+                  <button className="btn-ghost" style={{ fontSize: 12, padding: '6px 12px' }}
+                    onClick={() => {
+                      haptic(3)
+                      navigator.clipboard.writeText(WAVE_NUMBER)
+                        .then(() => alert('Numéro copié ! Ouvre Wave et envoie à ce numéro.'))
+                        .catch(() => alert('Numéro : ' + WAVE_NUMBER))
+                    }}>
+                    Copier
+                  </button>
+                </div>
               )}
               {KOFI_URL && (
                 <a href={KOFI_URL} target="_blank" rel="noreferrer"
@@ -266,6 +301,25 @@ export default function Settings() {
             <ExternalLink size={13} /> LinkedIn
           </a>
         </Row>
+
+        {/* ── Admin : feedbacks reçus (superadmin uniquement) ── */}
+        {isAdmin && (
+          <Row label="Feedbacks reçus" hint={newFeedbacks > 0 ? `${newFeedbacks} nouveau${newFeedbacks > 1 ? 'x' : ''}` : 'Aucun nouveau'}>
+            <a href="https://supabase.com/dashboard/project/jhsiecozuzmuxkgxnixm/editor?schema=public&table=feedback"
+              target="_blank" rel="noreferrer" className="btn-ghost"
+              style={{ fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 6, textDecoration: 'none',
+                color: newFeedbacks > 0 ? 'var(--accent-1)' : undefined }}>
+              <Inbox size={13} />
+              Voir tout
+              {newFeedbacks > 0 && (
+                <span style={{ background: 'var(--accent-1)', color: 'var(--bg)', borderRadius: 999,
+                  fontSize: 10, fontWeight: 700, padding: '1px 7px', lineHeight: 1.6 }}>
+                  {newFeedbacks}
+                </span>
+              )}
+            </a>
+          </Row>
+        )}
 
         {/* Signature builder */}
         <div style={{ marginTop: 4, padding: '14px 16px', borderRadius: 12,
