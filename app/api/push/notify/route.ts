@@ -33,30 +33,38 @@ export async function GET(req: NextRequest) {
     let sent = 0
     const staleEndpoints: string[] = []
 
+    // Contexte horaire pour personnaliser le titre/message
+    const hour = new Date().getUTCHours() // Dakar = UTC+0
+    const timeCtx = hour < 10 ? 'matin' : hour < 16 ? 'midi' : 'soir'
+    const titles: Record<string, string> = {
+      matin: 'Personal OS — Bonne journée 🌅',
+      midi:  'Personal OS — Point de mi-journée ☀️',
+      soir:  'Personal OS — Prépare ta soirée 🌙',
+    }
+
     for (const sub of subs) {
-      // Construire un résumé personnalisé pour cet utilisateur
       const [examsRes, devoirsRes, tasksRes] = await Promise.all([
         supabase.from('exams').select('subject, exam_date').eq('user_id', sub.user_id).eq('status', 'upcoming'),
         supabase.from('devoirs').select('subject, due_date').eq('user_id', sub.user_id).in('status', ['todo', 'doing']),
-        supabase.from('tasks').select('title, due_date').eq('user_id', sub.user_id).eq('status', 'todo').eq('recurring', true),
+        supabase.from('tasks').select('title').eq('user_id', sub.user_id).eq('status', 'todo').eq('recurring', true),
       ])
 
-      const todayExams = (examsRes.data || []).filter(e => e.exam_date?.startsWith(today))
+      const todayExams    = (examsRes.data || []).filter(e => e.exam_date?.startsWith(today))
       const tomorrowExams = (examsRes.data || []).filter(e => e.exam_date?.startsWith(tomorrowISO))
       const urgentDevoirs = (devoirsRes.data || []).filter(d => d.due_date?.startsWith(today) || d.due_date?.startsWith(tomorrowISO))
-      const recurringToday = (tasksRes.data || [])
+      const recurringToday = tasksRes.data || []
 
-      // Construire le message
       const lines: string[] = []
-      if (todayExams.length) lines.push(`📝 Examen aujourd'hui : ${todayExams.map(e => e.subject).join(', ')}`)
+      if (todayExams.length)    lines.push(`📝 Examen aujourd'hui : ${todayExams.map(e => e.subject).join(', ')}`)
       if (tomorrowExams.length) lines.push(`⚠️ Examen demain : ${tomorrowExams.map(e => e.subject).join(', ')}`)
       if (urgentDevoirs.length) lines.push(`📚 Devoir urgent : ${urgentDevoirs.map(d => d.subject).join(', ')}`)
-      if (recurringToday.length) lines.push(`🔁 ${recurringToday.length} habitude${recurringToday.length > 1 ? 's' : ''} du jour`)
+      if (timeCtx === 'matin' && recurringToday.length)
+        lines.push(`🔁 ${recurringToday.length} habitude${recurringToday.length > 1 ? 's' : ''} à faire aujourd'hui`)
 
-      if (lines.length === 0) continue // Rien d'urgent aujourd'hui → pas de push
+      if (lines.length === 0) continue
 
       const payload = JSON.stringify({
-        title: 'Personal OS — Rappel du matin',
+        title: titles[timeCtx],
         body: lines.join('\n'),
         icon: '/icons/icon-192.png',
         badge: '/icons/icon-192.png',
