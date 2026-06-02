@@ -5,7 +5,7 @@ import type { Task, Project, Adjustment, PomodoroState, Folder } from '@/types'
 import { useLS } from '@/hooks/useLocalStorage'
 import { todayISO, nextOccurrenceDate, genId } from '@/utils/dates'
 import { createClient } from '@/lib/supabase/client'
-import { taskToRow, rowToTask, folderToRow, rowToFolder } from '@/lib/supabase/mappers'
+import { taskToRow, rowToTask, folderToRow, rowToFolder, projectToRow, rowToProject } from '@/lib/supabase/mappers'
 
 const NOTIF_ICON = '/icons/icon-192.png'
 
@@ -102,6 +102,12 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
         if (remoteTasks && remoteTasks.length > 0)
           setTasks(remoteTasks.map(rowToTask))
 
+        // Projects
+        const { data: remoteProjects } = await supabase
+          .from('projects').select('*').eq('user_id', user.id).order('created_at')
+        if (remoteProjects && remoteProjects.length > 0)
+          setProjects(remoteProjects.map(rowToProject))
+
         // Laisser les effets se propager avant d'autoriser le push
         setTimeout(() => { isHydrating.current = false }, 200)
       } catch { /* offline ou non connecté — on garde localStorage */ }
@@ -125,9 +131,12 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
 
         if (folders.length > 0)
           await supabase.from('folders').upsert(folders.map(f => folderToRow(f, user.id)), { onConflict: 'id' })
+
+        if (projects.length > 0)
+          await supabase.from('projects').upsert(projects.map(p => projectToRow(p, user.id)), { onConflict: 'id' })
       } catch { /* offline — localStorage persiste déjà */ }
     }, 3000) // 3s debounce — évite de spammer Supabase à chaque frappe
-  }, [tasks, folders]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [tasks, folders, projects]) // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ── Initialisation : réinitialisation des récurrentes + déplacement des retards
         en un seul effet pour éviter la race condition entre les deux passes. ── */

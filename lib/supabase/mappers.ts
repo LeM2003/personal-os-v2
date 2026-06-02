@@ -3,7 +3,7 @@
  * Centralisé ici pour que les changements de schéma n'impactent qu'un seul fichier.
  */
 
-import type { Task, Folder } from '@/types'
+import type { Task, Folder, Expense, Project } from '@/types'
 
 // ── Status ──────────────────────────────────────────────────────────────────
 const STATUS_TO_DB: Record<string, string> = {
@@ -99,6 +99,90 @@ export function rowToFolder(row: Record<string, any>): Folder {
     color: row.color as string,
     emoji: (row.emoji as string) || undefined,
     order: (row.position as number) ?? 0,
+    createdAt: (row.created_at as string) || undefined,
+  }
+}
+
+// ── Expense ──────────────────────────────────────────────────────────────────
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function expenseToRow(expense: Expense, userId: string): Record<string, any> {
+  return {
+    id: expense.id,
+    user_id: userId,
+    type: 'expense',
+    amount: expense.amount,
+    currency: 'XOF',
+    category: expense.category || 'Autre',
+    description: expense.label || null,
+    occurred_at: expense.date ? `${expense.date}T00:00:00Z` : new Date().toISOString(),
+    metadata: { type: expense.type || null, note: expense.note || null },
+    tags: [],
+    attachments: [],
+    ai_generated: false,
+    ai_categorized: false,
+  }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function rowToExpense(row: Record<string, any>): Expense {
+  const meta = (row.metadata ?? {}) as Record<string, unknown>
+  return {
+    id: row.id as string,
+    label: (row.description as string) || undefined,
+    amount: row.amount as number,
+    date: row.occurred_at ? (row.occurred_at as string).slice(0, 10) : '',
+    category: (row.category as string) || undefined,
+    type: (meta.type as string) || undefined,
+    note: (meta.note as string) || undefined,
+  }
+}
+
+// ── Project ──────────────────────────────────────────────────────────────────
+
+const PROJECT_STATUS_TO_DB: Record<string, string> = {
+  'En cours': 'in_progress', 'Terminé': 'done',
+  'En pause': 'archived', 'Abandonné': 'archived',
+}
+const PROJECT_STATUS_FROM_DB: Record<string, string> = {
+  in_progress: 'En cours', done: 'Terminé',
+  archived: 'En pause', backlog: 'En cours',
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function projectToRow(project: Project, userId: string): Record<string, any> {
+  return {
+    id: project.id,
+    user_id: userId,
+    title: project.name,
+    description: project.description || project.objective || null,
+    status: PROJECT_STATUS_TO_DB[project.status ?? 'En cours'] ?? 'backlog',
+    target_date: project.targetDate || project.deadline || null,
+    position: 0,
+    metadata: {
+      type: project.type || null,
+      notes: project.notes || null,
+      steps: project.steps || [],
+      tags: project.tags || [],
+      aiAnalysis: project.aiAnalysis || null,
+    },
+  }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function rowToProject(row: Record<string, any>): Project {
+  const meta = (row.metadata ?? {}) as Record<string, unknown>
+  return {
+    id: row.id as string,
+    name: row.title as string,
+    description: (row.description as string) || undefined,
+    status: PROJECT_STATUS_FROM_DB[row.status as string] ?? 'En cours',
+    targetDate: (row.target_date as string) || undefined,
+    type: (meta.type as string) || undefined,
+    notes: (meta.notes as string) || undefined,
+    steps: (meta.steps as Project['steps']) || [],
+    tags: (meta.tags as string[]) || [],
+    aiAnalysis: (meta.aiAnalysis as string) || null,
     createdAt: (row.created_at as string) || undefined,
   }
 }
