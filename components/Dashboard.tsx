@@ -10,6 +10,7 @@ import type { Task, Exam, Homework, Subscription, AlertItem } from '@/types'
 import StatCard from './shared/StatCard'
 import MorningBriefing from './shared/MorningBriefing'
 import InstallPrompt from './shared/InstallPrompt'
+import SyncBadge from './shared/SyncBadge'
 import EmptyState from './shared/EmptyState'
 import SegmentedControl from './shared/SegmentedControl'
 import AnimatedCounter from './shared/AnimatedCounter'
@@ -159,9 +160,10 @@ export default function Dashboard() {
       {/* ── En-tête large-title ── */}
       <header className="page-header">
         <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ color: 'var(--muted)', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, margin: '0 0 8px', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <p style={{ color: 'var(--muted)', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, margin: '0 0 8px', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <span className="pulse-dot" style={{ width: 6, height: 6 }} />
             {todayLabel()}
+            <SyncBadge />
           </p>
           <h1 className="page-title">
             {greeting()}, <span className="gradient-text-gold">{profile?.prenom || 'toi'}</span>

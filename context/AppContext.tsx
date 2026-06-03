@@ -19,8 +19,6 @@ interface AppCoreContextValue {
   // Profil
   profile: UserProfile | null
   setProfile: (v: UserProfile | null | ((prev: UserProfile | null) => UserProfile | null)) => void
-  apiKey: string
-  setApiKey: (v: string | ((prev: string) => string)) => void
   // Apparence
   theme: string
   setTheme: (v: string | ((prev: string) => string)) => void
@@ -46,8 +44,6 @@ interface AppCoreContextValue {
   setSearchOpen: (v: boolean | ((prev: boolean) => boolean)) => void
   financeFormOpen: boolean
   setFinanceFormOpen: (v: boolean | ((prev: boolean) => boolean)) => void
-  apiModal: boolean
-  setApiModal: (v: boolean | ((prev: boolean) => boolean)) => void
   profileModal: boolean
   setProfileModal: (v: boolean | ((prev: boolean) => boolean)) => void
   backupModal: boolean
@@ -71,7 +67,6 @@ function AppCoreProvider({ children }: { children: React.ReactNode }) {
   /* ── Données persistées ── */
   const [tab,         setTab]         = useLS<string>('pos_tab',    'dashboard')
   const [profile,     setProfile]     = useLS<UserProfile | null>('pos_profile', null)
-  const [apiKey,      setApiKey]      = useLS<string>('pos_apikey', '')
   const [notifEnabled,setNotifEnabled]= useLS<boolean>('pos_notif', false)
   const [theme,       setTheme]       = useLS<string>('pos_theme',  'dark')
   const [accent,           setAccent]           = useLS<string>('pos_accent',       'cyan')
@@ -83,7 +78,6 @@ function AppCoreProvider({ children }: { children: React.ReactNode }) {
   /* ── UI state (non persisté) ── */
   const [searchOpen,      setSearchOpen]      = useState(false)
   const [financeFormOpen, setFinanceFormOpen] = useState(false)
-  const [apiModal,        setApiModal]        = useState(false)
   const [profileModal,    setProfileModal]    = useState(false)
   const [backupModal,     setBackupModal]     = useState(false)
   const importRef = useRef<HTMLInputElement>(null)
@@ -330,7 +324,6 @@ function AppCoreProvider({ children }: { children: React.ReactNode }) {
   const value: AppCoreContextValue = {
     tab, setTab,
     profile, setProfile,
-    apiKey, setApiKey,
     theme, setTheme, toggleTheme,
     accent, setAccent,
     fontScale, setFontScale,
@@ -342,7 +335,6 @@ function AppCoreProvider({ children }: { children: React.ReactNode }) {
     streakData, setStreakData,
     searchOpen, setSearchOpen,
     financeFormOpen, setFinanceFormOpen,
-    apiModal, setApiModal,
     profileModal, setProfileModal,
     backupModal, setBackupModal,
     importRef,

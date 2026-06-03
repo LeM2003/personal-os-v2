@@ -92,6 +92,18 @@ export default function LandingPage({ onStart }: { onStart: (profile: UserProfil
     setAuthLoading(false)
   }
 
+  const handleForgotPassword = async () => {
+    if (!form.email.trim()) { setAuthError('Entre ton email d\'abord, puis clique sur « Mot de passe oublié ».'); return }
+    setAuthLoading(true); setAuthError('')
+    const supabase = createClient()
+    const { error } = await supabase.auth.resetPasswordForEmail(form.email.trim(), {
+      redirectTo: `${window.location.origin}/reset-password`,
+    })
+    setAuthLoading(false)
+    if (error) { setAuthError(error.message); return }
+    alert('📧 Email envoyé ! Vérifie ta boîte (et les spams) pour réinitialiser ton mot de passe.')
+  }
+
   useEffect(() => {
     const onScroll = () => setShowSticky(window.scrollY > 400)
     window.addEventListener('scroll', onScroll, { passive: true })
@@ -402,6 +414,15 @@ export default function LandingPage({ onStart }: { onStart: (profile: UserProfil
                   onKeyDown={e => e.key === 'Enter' && handleAuth()} />
               )}
             </div>
+
+            {authMode === 'signin' && (
+              <button type="button" onClick={handleForgotPassword}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '8px 0 0',
+                  color: 'var(--accent-1)', fontSize: 12, fontFamily: 'var(--font-dm-sans, DM Sans)',
+                  textAlign: 'right', width: '100%' }}>
+                Mot de passe oublié ?
+              </button>
+            )}
 
             {/* Message d'erreur */}
             {authError && (
