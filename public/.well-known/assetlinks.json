@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.mouhamadou.personalos",
+      "sha256_cert_fingerprints": [
+        "1A:09:64:D3:60:36:F6:02:74:B8:23:3B:74:50:9B:FF:80:DF:12:41:F0:4E:E8:5D:A5:A4:18:4B:33:92:6E:91"
+      ]
+    }
+  }
+]
