@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Android signing & build artifacts (NE JAMAIS committer)
+*.keystore
+*.apk
+*.aab
+Personal OS*package/
