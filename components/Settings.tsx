@@ -5,9 +5,10 @@ import { useApp } from '@/context/AppContext'
 import { haptic } from '@/utils/haptics'
 import {
   Sun, Moon, Monitor, Check, Sparkles, User, Save, RotateCcw,
-  MessageSquare, Coffee, ExternalLink, Inbox,
+  MessageSquare, Coffee, ExternalLink, Inbox, Shield,
 } from 'lucide-react'
 import FeedbackModal from './modals/FeedbackModal'
+import AccountModal from './modals/AccountModal'
 import { createClient } from '@/lib/supabase/client'
 
 // 👇 Remplis ces deux champs quand tu as les comptes
@@ -104,6 +105,7 @@ export default function Settings() {
     setProfileModal, setBackupModal, profile,
   } = useApp()
   const [feedbackOpen, setFeedbackOpen] = useState(false)
+  const [accountOpen, setAccountOpen] = useState(false)
   const [newFeedbacks, setNewFeedbacks] = useState(0)
   const [isAdmin, setIsAdmin] = useState(false)
 
@@ -247,6 +249,11 @@ export default function Settings() {
             <Save size={13} style={{ display: 'inline', verticalAlign: -2, marginRight: 5 }} /> Gérer
           </button>
         </Row>
+        <Row label="Mon compte" hint="Email, mot de passe, suppression de compte.">
+          <button className="btn-ghost" onClick={() => setAccountOpen(true)} style={{ fontSize: 13 }}>
+            <Shield size={13} style={{ display: 'inline', verticalAlign: -2, marginRight: 5 }} /> Gérer
+          </button>
+        </Row>
       </Section>
 
       {/* ── Soutenir & Contact ── */}
@@ -334,6 +341,8 @@ export default function Settings() {
       </Section>
 
       {feedbackOpen && <FeedbackModal onClose={() => setFeedbackOpen(false)} />}
+      {accountOpen && <AccountModal onClose={() => setAccountOpen(false)}
+        onLoggedOut={() => { window.location.href = '/' }} />}
     </div>
   )
 }
