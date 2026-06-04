@@ -5,7 +5,7 @@ import { useApp } from '@/context/AppContext'
 import { haptic } from '@/utils/haptics'
 import {
   Sun, Moon, Monitor, Check, Sparkles, User, Save, RotateCcw,
-  MessageSquare, Coffee, ExternalLink, Inbox, Shield,
+  MessageSquare, Coffee, ExternalLink, Inbox, Shield, Bell,
 } from 'lucide-react'
 import FeedbackModal from './modals/FeedbackModal'
 import AccountModal from './modals/AccountModal'
@@ -103,6 +103,7 @@ export default function Settings() {
     theme, setTheme, accent, setAccent, fontScale, setFontScale,
     reduceMotionPref, setReduceMotionPref, defaultTab, setDefaultTab,
     setProfileModal, setBackupModal, profile,
+    notifEnabled, setNotifEnabled, enableNotifications,
   } = useApp()
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [accountOpen, setAccountOpen] = useState(false)
@@ -221,6 +222,36 @@ export default function Settings() {
         <Row label="Réduire les animations" hint="Désactive les orbes de fond et les transitions animées.">
           <Toggle on={reduceMotionPref} onChange={() => setReduceMotionPref(v => !v)} />
         </Row>
+      </Section>
+
+      {/* ── Notifications ── */}
+      <Section title="Notifications" sub="Active les rappels et vérifie qu'ils fonctionnent.">
+        <Row label="Rappels intelligents" hint={notifEnabled ? 'Activés — matin, midi, soir' : 'Désactivés'}>
+          <button className="btn-ghost" style={{ fontSize: 13,
+            color: notifEnabled ? '#4ade80' : undefined }}
+            onClick={() => { haptic(3); notifEnabled ? setNotifEnabled(false) : enableNotifications() }}>
+            {notifEnabled ? 'Activées ✓' : 'Activer'}
+          </button>
+        </Row>
+        {notifEnabled && (
+          <Row label="Tester maintenant" hint="Envoie une notification de test immédiate.">
+            <button className="btn-ghost" style={{ fontSize: 13 }}
+              onClick={async () => {
+                haptic(3)
+                try {
+                  const res = await fetch('/api/push/test', { method: 'POST' })
+                  if (res.ok) { alert('🔔 Notification envoyée ! Tu devrais la voir apparaître.') }
+                  else {
+                    const d = await res.json().catch(() => ({}))
+                    if (d.error === 'no_subscription') alert('⚠️ Aucun appareil abonné. Réactive les notifications puis réessaie.')
+                    else alert('Erreur : impossible d\'envoyer la notif de test.')
+                  }
+                } catch { alert('Erreur réseau.') }
+              }}>
+              <Bell size={13} style={{ display: 'inline', verticalAlign: -2, marginRight: 5 }} /> Envoyer un test
+            </button>
+          </Row>
+        )}
       </Section>
 
       {/* ── Comportement ── */}
