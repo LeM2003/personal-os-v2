@@ -12,6 +12,17 @@ import { createClient } from '@/lib/supabase/client'
 
 const NOTIF_ICON = '/icons/icon-192.png'
 
+// Convertit une clé VAPID base64url (string) en Uint8Array (requis par pushManager.subscribe)
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
+  const raw = atob(base64)
+  const buffer = new ArrayBuffer(raw.length)
+  const output = new Uint8Array(buffer)
+  for (let i = 0; i < raw.length; i++) output[i] = raw.charCodeAt(i)
+  return output
+}
+
 interface AppCoreContextValue {
   // Navigation
   tab: string
@@ -169,11 +180,12 @@ function AppCoreProvider({ children }: { children: React.ReactNode }) {
       new Notification('Personal OS 🔔', { body: 'Notifications activées !', icon: NOTIF_ICON })
       // Abonne l'appareil au Web Push VAPID
       try {
-        if ('serviceWorker' in navigator && process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) {
+        if ('serviceWorker' in navigator && 'PushManager' in window && process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) {
           const reg = await navigator.serviceWorker.ready
           const sub = await reg.pushManager.subscribe({
             userVisibleOnly: true,
-            applicationServerKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+            // ⚠️ applicationServerKey DOIT être un Uint8Array, pas une string base64
+            applicationServerKey: urlBase64ToUint8Array(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) as BufferSource,
           })
           await fetch('/api/push/subscribe', {
             method: 'POST',
@@ -181,7 +193,10 @@ function AppCoreProvider({ children }: { children: React.ReactNode }) {
             body: JSON.stringify(sub.toJSON()),
           })
         }
-      } catch { /* Web Push non supporté ou blocqué — les notifs locales restent actives */ }
+      } catch (err) {
+        // Web Push non supporté/bloqué — les notifs locales restent actives
+        console.warn('[Push] abonnement échoué:', err)
+      }
     } else {
       setNotifEnabled(false)
       alert('Permission refusée. Active les notifications dans les paramètres de ton navigateur.')

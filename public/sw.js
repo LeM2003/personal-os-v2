@@ -4,7 +4,7 @@
    Assets statiques : cache-first (hashes Next.js garantissent la fraîcheur).
    ============================================================ */
 
-const CACHE_NAME = 'personal-os-v6'
+const CACHE_NAME = 'personal-os-v7'
 const STATIC_ASSETS = ['/icons/icon-192.png', '/icons/icon-512.png', '/manifest.json']
 
 self.addEventListener('install', event => {
@@ -32,10 +32,19 @@ self.addEventListener('fetch', event => {
     return
   }
 
-  // 2. Pages HTML → toujours réseau (pour avoir les dernières versions)
-  if (event.request.headers.get('accept')?.includes('text/html')) {
+  // 2. Pages HTML / navigations → network-first, MAIS on cache le shell pour l'offline
+  if (event.request.mode === 'navigate' || event.request.headers.get('accept')?.includes('text/html')) {
     event.respondWith(
-      fetch(event.request).catch(() => caches.match('/'))
+      fetch(event.request)
+        .then(res => {
+          // Met à jour le shell '/' en cache à chaque visite réussie (pour servir hors ligne)
+          if (res.ok) {
+            const clone = res.clone()
+            caches.open(CACHE_NAME).then(c => c.put('/', clone))
+          }
+          return res
+        })
+        .catch(() => caches.match('/').then(r => r || caches.match('/manifest.json')))
     )
     return
   }
