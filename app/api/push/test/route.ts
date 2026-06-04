@@ -1,21 +1,20 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import webpush from 'web-push'
-import { createClient } from '@/lib/supabase/server'
+import { getUserFromBearer } from '@/lib/supabase/token'
 
 // POST — envoie une notification Web Push de TEST à l'utilisateur connecté.
 // Sert à vérifier que tout le circuit (abonnement + envoi serveur) fonctionne.
-export async function POST() {
+export async function POST(req: NextRequest) {
   const pubKey  = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
   const privKey = process.env.VAPID_PRIVATE_KEY
   if (!pubKey || !privKey) return NextResponse.json({ error: 'VAPID keys missing' }, { status: 500 })
   webpush.setVapidDetails('mailto:metzod237@gmail.com', pubKey, privKey)
 
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
+    const { user, admin } = await getUserFromBearer(req.headers.get('authorization'))
+    if (!user || !admin) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
 
-    const { data: subs } = await supabase
+    const { data: subs } = await admin
       .from('push_subscriptions').select('*').eq('user_id', user.id)
 
     if (!subs || subs.length === 0) {
@@ -42,7 +41,7 @@ export async function POST() {
         // Abonnement expiré (410) → on le nettoie
         const code = (err as { statusCode?: number }).statusCode
         if (code === 410 || code === 404) {
-          await supabase.from('push_subscriptions').delete().eq('id', sub.id)
+          await admin.from('push_subscriptions').delete().eq('id', sub.id)
         }
       }
     }

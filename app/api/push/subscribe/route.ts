@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { getUserFromBearer } from '@/lib/supabase/token'
 
 export async function POST(req: NextRequest) {
   try {
@@ -8,11 +8,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid subscription' }, { status: 400 })
     }
 
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const { user, admin } = await getUserFromBearer(req.headers.get('authorization'))
+    if (!user || !admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    await supabase.from('push_subscriptions').upsert({
+    // Insert via service_role (RLS contournée en sécurité car user_id vérifié via le token)
+    await admin.from('push_subscriptions').upsert({
       user_id:    user.id,
       endpoint,
       p256dh:     keys.p256dh,
@@ -29,11 +29,10 @@ export async function POST(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     const { endpoint } = await req.json()
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const { user, admin } = await getUserFromBearer(req.headers.get('authorization'))
+    if (!user || !admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    await supabase.from('push_subscriptions')
+    await admin.from('push_subscriptions')
       .delete().eq('user_id', user.id).eq('endpoint', endpoint)
 
     return NextResponse.json({ ok: true })

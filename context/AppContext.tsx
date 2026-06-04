@@ -187,9 +187,15 @@ function AppCoreProvider({ children }: { children: React.ReactNode }) {
             // ⚠️ applicationServerKey DOIT être un Uint8Array, pas une string base64
             applicationServerKey: urlBase64ToUint8Array(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) as BufferSource,
           })
+          // Auth par token Bearer (fiable en TWA/PWA, contrairement aux cookies)
+          const { createClient } = await import('@/lib/supabase/client')
+          const { data: { session } } = await createClient().auth.getSession()
           await fetch('/api/push/subscribe', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+            },
             body: JSON.stringify(sub.toJSON()),
           })
         }

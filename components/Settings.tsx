@@ -239,11 +239,16 @@ export default function Settings() {
               onClick={async () => {
                 haptic(3)
                 try {
-                  const res = await fetch('/api/push/test', { method: 'POST' })
+                  const { data: { session } } = await createClient().auth.getSession()
+                  const res = await fetch('/api/push/test', {
+                    method: 'POST',
+                    headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
+                  })
                   if (res.ok) { alert('🔔 Notification envoyée ! Tu devrais la voir apparaître.') }
                   else {
                     const d = await res.json().catch(() => ({}))
                     if (d.error === 'no_subscription') alert('⚠️ Aucun appareil abonné. Réactive les notifications puis réessaie.')
+                    else if (d.error === 'Non authentifié') alert('⚠️ Session expirée. Déconnecte-toi et reconnecte-toi.')
                     else alert('Erreur : impossible d\'envoyer la notif de test.')
                   }
                 } catch { alert('Erreur réseau.') }
