@@ -30,6 +30,7 @@ export async function POST(req: NextRequest) {
     })
 
     let sent = 0
+    let lastError: { statusCode?: number; body?: string; message?: string } | null = null
     for (const sub of subs) {
       try {
         await webpush.sendNotification(
@@ -38,15 +39,16 @@ export async function POST(req: NextRequest) {
         )
         sent++
       } catch (err) {
+        const e = err as { statusCode?: number; body?: string; message?: string }
+        lastError = { statusCode: e.statusCode, body: e.body, message: e.message }
         // Abonnement expiré (410) → on le nettoie
-        const code = (err as { statusCode?: number }).statusCode
-        if (code === 410 || code === 404) {
+        if (e.statusCode === 410 || e.statusCode === 404) {
           await admin.from('push_subscriptions').delete().eq('id', sub.id)
         }
       }
     }
 
-    if (sent === 0) return NextResponse.json({ error: 'send_failed' }, { status: 500 })
+    if (sent === 0) return NextResponse.json({ error: 'send_failed', detail: lastError }, { status: 500 })
     return NextResponse.json({ ok: true, sent })
   } catch {
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })

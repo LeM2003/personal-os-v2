@@ -247,7 +247,8 @@ export default function Settings() {
                   if (res.ok) { alert('🔔 Notification envoyée ! Tu devrais la voir apparaître.') }
                   else {
                     const d = await res.json().catch(() => ({}))
-                    if (d.error === 'no_subscription') alert('⚠️ Aucun appareil abonné. Réactive les notifications puis réessaie.')
+                    if (d.detail) alert('DIAG: ' + JSON.stringify(d.detail))
+                    else if (d.error === 'no_subscription') alert('⚠️ Aucun appareil abonné. Réactive les notifications puis réessaie.')
                     else if (d.error === 'Non authentifié') alert('⚠️ Session expirée. Déconnecte-toi et reconnecte-toi.')
                     else alert('Erreur : impossible d\'envoyer la notif de test.')
                   }
