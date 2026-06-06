@@ -225,39 +225,14 @@ export default function Settings() {
       </Section>
 
       {/* ── Notifications ── */}
-      <Section title="Notifications" sub="Active les rappels et vérifie qu'ils fonctionnent.">
-        <Row label="Rappels intelligents" hint={notifEnabled ? 'Activés — matin, midi, soir' : 'Désactivés'}>
+      <Section title="Notifications" sub="Rappels de tes examens, devoirs et routines quand l'app est ouverte.">
+        <Row label="Rappels intelligents" hint={notifEnabled ? 'Activés' : 'Désactivés'}>
           <button className="btn-ghost" style={{ fontSize: 13,
             color: notifEnabled ? '#4ade80' : undefined }}
             onClick={() => { haptic(3); notifEnabled ? setNotifEnabled(false) : enableNotifications() }}>
             {notifEnabled ? 'Activées ✓' : 'Activer'}
           </button>
         </Row>
-        {notifEnabled && (
-          <Row label="Tester maintenant" hint="Envoie une notification de test immédiate.">
-            <button className="btn-ghost" style={{ fontSize: 13 }}
-              onClick={async () => {
-                haptic(3)
-                try {
-                  const { data: { session } } = await createClient().auth.getSession()
-                  const res = await fetch('/api/push/test', {
-                    method: 'POST',
-                    headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
-                  })
-                  if (res.ok) { alert('🔔 Notification envoyée ! Tu devrais la voir apparaître.') }
-                  else {
-                    const d = await res.json().catch(() => ({}))
-                    if (d.detail) alert('DIAG: ' + JSON.stringify(d.detail))
-                    else if (d.error === 'no_subscription') alert('⚠️ Aucun appareil abonné. Réactive les notifications puis réessaie.')
-                    else if (d.error === 'Non authentifié') alert('⚠️ Session expirée. Déconnecte-toi et reconnecte-toi.')
-                    else alert('Erreur : impossible d\'envoyer la notif de test.')
-                  }
-                } catch { alert('Erreur réseau.') }
-              }}>
-              <Bell size={13} style={{ display: 'inline', verticalAlign: -2, marginRight: 5 }} /> Envoyer un test
-            </button>
-          </Row>
-        )}
       </Section>
 
       {/* ── Comportement ── */}
