@@ -41,7 +41,11 @@ export default function AccountModal({ onClose, onLoggedOut }: { onClose: () => 
     if (!confirm('Dernière confirmation : tout sera effacé pour toujours. Continuer ?')) return
     haptic(8); setBusy(true); setErr('')
     try {
-      const res = await fetch('/api/account/delete', { method: 'POST' })
+      const { data: { session } } = await createClient().auth.getSession()
+      const res = await fetch('/api/account/delete', {
+        method: 'POST',
+        headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
+      })
       if (!res.ok) { const d = await res.json().catch(() => ({})); setErr(d.error || 'Erreur lors de la suppression.'); setBusy(false); return }
       // Efface aussi le localStorage local
       try { Object.keys(localStorage).filter(k => k.startsWith('pos_') || k === 'onboardingDone').forEach(k => localStorage.removeItem(k)) } catch {}
