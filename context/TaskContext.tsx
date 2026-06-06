@@ -3,8 +3,8 @@
 import { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react'
 import type { Task, Project, Adjustment, PomodoroState, Folder } from '@/types'
 import { useLS } from '@/hooks/useLocalStorage'
+import { useSyncedCollection } from '@/hooks/useSyncedCollection'
 import { todayISO, nextOccurrenceDate, genId } from '@/utils/dates'
-import { createClient } from '@/lib/supabase/client'
 import { taskToRow, rowToTask, folderToRow, rowToFolder, projectToRow, rowToProject } from '@/lib/supabase/mappers'
 
 const NOTIF_ICON = '/icons/icon-192.png'
@@ -40,9 +40,19 @@ interface TaskContextValue {
 const TaskContext = createContext<TaskContextValue | null>(null)
 
 export function TaskProvider({ children }: { children: React.ReactNode }) {
-  const [tasks,       setTasks]       = useLS<Task[]>('pos_tasks',       [])
-  const [projects,    setProjects]    = useLS<Project[]>('pos_projects',  [])
-  const [folders,     setFolders]     = useLS<Folder[]>('pos_folders',   DEFAULT_FOLDERS)
+  // Collections synchronisées via le moteur unifié (pull/push différentiel/delete/anti-race)
+  const [tasks, setTasks] = useSyncedCollection<Task>({
+    storageKey: 'pos_tasks', table: 'tasks', toRow: taskToRow, fromRow: rowToTask,
+    getId: t => t.id, defaultValue: [], orderBy: { column: 'created_at' },
+  })
+  const [folders, setFolders] = useSyncedCollection<Folder>({
+    storageKey: 'pos_folders', table: 'folders', toRow: folderToRow, fromRow: rowToFolder,
+    getId: f => f.id, defaultValue: DEFAULT_FOLDERS, orderBy: { column: 'position' },
+  })
+  const [projects, setProjects] = useSyncedCollection<Project>({
+    storageKey: 'pos_projects', table: 'projects', toRow: projectToRow, fromRow: rowToProject,
+    getId: p => p.id, defaultValue: [], orderBy: { column: 'created_at' },
+  })
   const [adjustments, setAdjustments] = useLS<Adjustment[]>('pos_adjustments', [])
 
   /* ── Dossiers (catégories colorées) — CRUD ── */
@@ -55,14 +65,10 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
   }, [setFolders])
 
   // Supprimer un dossier n'efface jamais les tâches : elles repassent « Sans dossier ».
+  // Le moteur de sync propage automatiquement la suppression (delete différentiel).
   const deleteFolder = useCallback((id: string) => {
     setFolders(prev => prev.filter(f => f.id !== id))
     setTasks(prev => prev.map(t => t.folderId === id ? { ...t, folderId: undefined } : t))
-    // Propagation du delete en base Supabase (fire-and-forget, offline-safe)
-    const supabase = createClient()
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) supabase.from('folders').delete().eq('id', id).eq('user_id', user.id)
-    }).catch(() => {})
   }, [setFolders, setTasks])
 
   const moveFolder = useCallback((id: string, dir: -1 | 1) => {
@@ -75,68 +81,6 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
       return sorted.map((f, idx) => ({ ...f, order: idx }))
     })
   }, [setFolders])
-
-  /* ── Supabase sync : hydration au mount + push debounced sur changements ── */
-  const isHydrating = useRef(false)   // évite de re-pusher ce qu'on vient de tirer
-  const pushTimer   = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  // PULL — Au montage, si l'user est connecté, Supabase gagne sur localStorage
-  useEffect(() => {
-    async function hydrate() {
-      try {
-        const supabase = createClient()
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) return
-
-        isHydrating.current = true
-
-        // Folders d'abord (les tâches y font référence)
-        const { data: remoteFolders } = await supabase
-          .from('folders').select('*').eq('user_id', user.id).order('position')
-        if (remoteFolders && remoteFolders.length > 0)
-          setFolders(remoteFolders.map(rowToFolder))
-
-        // Tasks
-        const { data: remoteTasks } = await supabase
-          .from('tasks').select('*').eq('user_id', user.id).order('created_at')
-        if (remoteTasks && remoteTasks.length > 0)
-          setTasks(remoteTasks.map(rowToTask))
-
-        // Projects
-        const { data: remoteProjects } = await supabase
-          .from('projects').select('*').eq('user_id', user.id).order('created_at')
-        if (remoteProjects && remoteProjects.length > 0)
-          setProjects(remoteProjects.map(rowToProject))
-
-        // Laisser les effets se propager avant d'autoriser le push
-        setTimeout(() => { isHydrating.current = false }, 200)
-      } catch { /* offline ou non connecté — on garde localStorage */ }
-    }
-    hydrate()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  // PUSH — À chaque changement de tasks ou folders, on débounce vers Supabase
-  useEffect(() => {
-    if (isHydrating.current) return
-    if (pushTimer.current) clearTimeout(pushTimer.current)
-    pushTimer.current = setTimeout(async () => {
-      try {
-        const supabase = createClient()
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) return
-
-        if (tasks.length > 0)
-          await supabase.from('tasks').upsert(tasks.map(t => taskToRow(t, user.id)), { onConflict: 'id' })
-
-        if (folders.length > 0)
-          await supabase.from('folders').upsert(folders.map(f => folderToRow(f, user.id)), { onConflict: 'id' })
-
-        if (projects.length > 0)
-          await supabase.from('projects').upsert(projects.map(p => projectToRow(p, user.id)), { onConflict: 'id' })
-      } catch { /* offline — localStorage persiste déjà */ }
-    }, 3000) // 3s debounce — évite de spammer Supabase à chaque frappe
-  }, [tasks, folders, projects]) // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ── Initialisation : réinitialisation des récurrentes + déplacement des retards
         en un seul effet pour éviter la race condition entre les deux passes. ── */
@@ -152,7 +96,15 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
         if (!t.recurring || t.status !== 'Terminé') return t
         if (t.lastCompletedAt && t.lastCompletedAt < today) {
           const nextDate = nextOccurrenceDate(t, t.lastCompletedAt)
-          return { ...t, status: 'À faire' as const, deadline: nextDate, lastCompletedAt: null }
+          // Nouvelle occurrence → on décoche les sous-tâches (sinon elles restent
+          // cochées de la veille, ce qui casse une routine quotidienne).
+          return {
+            ...t,
+            status: 'À faire' as const,
+            deadline: nextDate,
+            lastCompletedAt: null,
+            subtasks: (t.subtasks || []).map(s => ({ ...s, done: false })),
+          }
         }
         return t
       })
