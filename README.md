@@ -8,13 +8,25 @@
 [![Next.js](https://img.shields.io/badge/Next.js-16.2-000?style=flat&logo=nextdotjs&logoColor=white)](https://nextjs.org)
 [![React](https://img.shields.io/badge/React-19-20232A?style=flat&logo=react&logoColor=61DAFB)](https://react.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=flat&logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![Supabase](https://img.shields.io/badge/Supabase-Postgres%20%2B%20Auth-3FCF8E?style=flat&logo=supabase&logoColor=white)](https://supabase.com)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-4-06B6D4?style=flat&logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
-[![Groq AI](https://img.shields.io/badge/AI-Groq-F55036?style=flat)](https://groq.com)
-[![Deploy](https://img.shields.io/badge/Vercel-deployed-000?style=flat&logo=vercel&logoColor=white)](https://personal-os-v2-wheat.vercel.app)
+[![PWA](https://img.shields.io/badge/PWA-Android%20APK-5A0FC8?style=flat&logo=pwa&logoColor=white)](https://github.com/LeM2003/personal-os-v2/releases/latest)
 
-**[🌐 Voir le live](https://personal-os-v2-wheat.vercel.app)** · **[🎯 Roadmap](#-roadmap)** · **[💬 Feedback](https://github.com/LeM2003/personal-os-v2/issues)**
+**[🌐 personal-os.click](https://personal-os.click)** · **[📲 Télécharger l'APK](https://github.com/LeM2003/personal-os-v2/releases/latest)** · **[🎯 Roadmap](#-roadmap)** · **[💬 Feedback](https://github.com/LeM2003/personal-os-v2/issues)**
 
 </div>
+
+---
+
+## 📲 Essayer / Installer
+
+| Plateforme | Comment |
+|---|---|
+| 🌐 **Web** (instantané) | **[personal-os.click](https://personal-os.click)** |
+| 🤖 **Android** (APK) | **[Dernière release](https://github.com/LeM2003/personal-os-v2/releases/latest)** → ouvrir le `.apk` → autoriser l'installation |
+| 🍎 **iPhone** (PWA) | Safari → Partager → « Sur l'écran d'accueil » |
+
+> Gratuit · fonctionne hors ligne · données synchronisées sur tous tes appareils.
 
 ---
 
@@ -65,15 +77,17 @@ Conçu pour les **étudiants africains qui construisent** : profil dual, contrai
 
 | Couche | Tech |
 |---|---|
-| **Framework** | Next.js 16.2 (App Router) |
+| **Framework** | Next.js 16.2 (App Router, `proxy.ts`) |
 | **Frontend** | React 19, TypeScript 5, Tailwind v4 |
-| **Animations** | Framer Motion 12 |
-| **Icons** | Lucide React |
-| **IA** | Groq SDK (Llama 3.3 70B) |
-| **Backend** | Supabase (Postgres + Auth + Realtime) *— en cours d'intégration* |
-| **PWA** | Service Worker custom, manifest.json |
-| **Tests E2E** | Playwright |
-| **Deploy** | Vercel |
+| **Backend** | Supabase (Postgres + Auth + RLS) — 12 tables, migrations versionnées |
+| **Sync** | Moteur unifié localStorage ⇄ Supabase (pull/push différentiel, offline-first) |
+| **Auth** | Supabase email/password, token Bearer pour les API routes |
+| **Emails** | Resend (domaine vérifié `personal-os.click`) |
+| **IA** | Groq SDK (Llama 3.3 70B) — assistant + génération de tâches |
+| **Notifications** | Web Push VAPID + Service Worker + Cron Vercel |
+| **PWA / APK** | Manifest + SW custom · APK Android (TWA, signé) |
+| **Animations** | Framer Motion 12 · **Icons** Lucide React |
+| **Deploy** | Vercel · domaine `personal-os.click` |
 
 ---
 
