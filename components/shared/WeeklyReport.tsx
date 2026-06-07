@@ -120,30 +120,99 @@ export default function WeeklyReport({ tasks, expenses, subscriptions, projects,
 
   const maxBar = Math.max(...last7.map(d => d.created), 1)
 
+  // Génère une vraie carte image (Canvas natif, zéro dépendance) puis la partage.
+  // Carte brandée "Personal OS" + domaine → chaque partage = acquisition.
   const exportPNG = async () => {
-    if (!reportRef.current) return
     setExporting(true)
     try {
-      // Native share API (mobile) — pas besoin de html2canvas
-      if (navigator.share) {
-        try {
-          const text = `Mon rapport hebdo — Personal OS\nScore: ${globalScore}/100\nTâches: ${totalDone}/${totalCreated}\nHabitudes: ${habitsPct}%\nScore global: ${globalScore}/100`
-          await navigator.share({ title: 'Mon rapport hebdo — Personal OS', text })
-          setExporting(false)
-          return
-        } catch { /* user cancelled or not supported with files */ }
+      const W = 1080, H = 1350
+      const canvas = document.createElement('canvas')
+      canvas.width = W; canvas.height = H
+      const ctx = canvas.getContext('2d')
+      if (!ctx) throw new Error('no-ctx')
+
+      // Fond dégradé bleu nuit
+      const grad = ctx.createLinearGradient(0, 0, W, H)
+      grad.addColorStop(0, '#060d1a')
+      grad.addColorStop(1, '#0d1526')
+      ctx.fillStyle = grad
+      ctx.fillRect(0, 0, W, H)
+
+      // Halo accent
+      const glow = ctx.createRadialGradient(W / 2, 560, 60, W / 2, 560, 460)
+      glow.addColorStop(0, 'rgba(56,189,248,0.10)')
+      glow.addColorStop(1, 'transparent')
+      ctx.fillStyle = glow
+      ctx.fillRect(0, 0, W, H)
+
+      // Header
+      ctx.textAlign = 'left'
+      ctx.fillStyle = '#38bdf8'
+      ctx.font = 'bold 46px sans-serif'
+      ctx.fillText('Personal OS', 80, 130)
+      ctx.fillStyle = '#e2eaf5'
+      ctx.font = 'bold 76px Georgia, serif'
+      ctx.fillText('Ma semaine', 80, 240)
+      ctx.fillStyle = '#64748b'
+      ctx.font = '34px sans-serif'
+      ctx.fillText(weekLabel, 80, 300)
+
+      // Anneau de score
+      const cx = W / 2, cy = 620, r = 175
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2)
+      ctx.lineWidth = 30; ctx.strokeStyle = 'rgba(255,255,255,0.06)'; ctx.stroke()
+      ctx.beginPath(); ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + (globalScore / 100) * Math.PI * 2)
+      ctx.lineWidth = 30; ctx.strokeStyle = scoreColor; ctx.lineCap = 'round'; ctx.stroke()
+
+      ctx.textAlign = 'center'
+      ctx.fillStyle = scoreColor; ctx.font = 'bold 30px sans-serif'
+      ctx.fillText('SCORE DE LA SEMAINE', cx, cy - 205)
+      ctx.fillStyle = '#e2eaf5'; ctx.font = 'bold 150px sans-serif'
+      ctx.fillText(String(globalScore), cx, cy + 45)
+      ctx.fillStyle = '#64748b'; ctx.font = '38px sans-serif'
+      ctx.fillText('/ 100', cx, cy + 115)
+
+      // Stats détaillées
+      const rows: [string, string][] = [
+        ['Tâches terminées', `${totalDone}/${totalCreated}`],
+        ['Habitudes tenues', `${habitsPct}%`],
+        ['Devoirs rendus', `${devoirsRate}%`],
+        ['Révisions', `${revisionRate}%`],
+      ]
+      let y = 960
+      for (const [label, val] of rows) {
+        ctx.fillStyle = '#94a3b8'; ctx.font = '42px sans-serif'; ctx.textAlign = 'left'
+        ctx.fillText(label, 90, y)
+        ctx.fillStyle = '#e2eaf5'; ctx.font = 'bold 46px sans-serif'; ctx.textAlign = 'right'
+        ctx.fillText(val, W - 90, y)
+        ctx.strokeStyle = 'rgba(255,255,255,0.05)'; ctx.lineWidth = 1
+        ctx.beginPath(); ctx.moveTo(90, y + 28); ctx.lineTo(W - 90, y + 28); ctx.stroke()
+        y += 95
       }
 
-      // Fallback: copier le rapport dans le presse-papier
-      const text = `📊 Rapport hebdo — Personal OS\n\n🏆 Score: ${globalScore}/100\n✅ Tâches: ${totalDone}/${totalCreated}\n🔥 Habitudes: ${habitsPct}%\n📚 Devoirs: ${devoirsRate}%\n📝 Révisions: ${revisionRate}%`
-      try {
-        await navigator.clipboard.writeText(text)
-        alert('Rapport copié dans le presse-papier !')
-      } catch {
-        alert('Partage non disponible sur ce navigateur.')
+      // Footer domaine
+      ctx.fillStyle = '#38bdf8'; ctx.font = '36px sans-serif'; ctx.textAlign = 'center'
+      ctx.fillText('personal-os.click', W / 2, H - 70)
+
+      const blob = await new Promise<Blob | null>(res => canvas.toBlob(res, 'image/png'))
+      if (!blob) throw new Error('no-blob')
+      const file = new File([blob], 'ma-semaine-personal-os.png', { type: 'image/png' })
+
+      // Partage natif avec l'image (mobile) — sinon téléchargement
+      const nav = navigator as Navigator & { canShare?: (d: { files: File[] }) => boolean }
+      if (nav.canShare && nav.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: 'Ma semaine — Personal OS' })
+      } else {
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url; a.download = 'ma-semaine-personal-os.png'; a.click()
+        URL.revokeObjectURL(url)
       }
     } catch (e) {
-      console.error('Export error:', e)
+      if ((e as Error)?.name !== 'AbortError') {
+        console.error('Export error:', e)
+        alert('Partage non disponible sur ce navigateur.')
+      }
     } finally {
       setExporting(false)
     }
