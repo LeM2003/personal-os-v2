@@ -29,8 +29,10 @@ const page = await ctx.newPage()
 page.on('console', (m) => {
   if (m.type() === 'error') consoleErrors.push(m.text().slice(0, 200))
 })
+const forbidden = []
 page.on('response', (r) => {
-  if (r.status() >= 500) networkErrors.push(`${r.status()} ${r.url().slice(0, 100)}`)
+  if (r.status() >= 500) networkErrors.push(`${r.status()} ${r.url().slice(0, 110)}`)
+  else if (r.status() === 403 || r.status() === 400) forbidden.push(`${r.status()} ${r.url().slice(0, 110)}`)
 })
 
 try {
@@ -137,6 +139,8 @@ try {
   consoleErrors.slice(0, 8).forEach(e => console.log('  ⚠ ' + e))
   console.log(`Erreurs réseau (5xx): ${networkErrors.length}`)
   networkErrors.slice(0, 8).forEach(e => console.log('  ⚠ ' + e))
+  console.log(`Réponses 403/400: ${forbidden.length}`)
+  forbidden.slice(0, 8).forEach(e => console.log('  • ' + e))
   console.log(`\nCompte test créé: ${TEST_EMAIL} (à supprimer)`)
   await browser.close()
 }
