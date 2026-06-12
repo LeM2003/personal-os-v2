@@ -182,6 +182,11 @@ function AppCoreProvider({ children }: { children: React.ReactNode }) {
       try {
         if ('serviceWorker' in navigator && 'PushManager' in window && process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) {
           const reg = await navigator.serviceWorker.ready
+          // Un abonnement créé avec une ancienne clé VAPID est inutilisable
+          // (403 à l'envoi) et fait échouer subscribe() (InvalidStateError) →
+          // on repart toujours d'un abonnement frais.
+          const existing = await reg.pushManager.getSubscription()
+          if (existing) await existing.unsubscribe()
           const sub = await reg.pushManager.subscribe({
             userVisibleOnly: true,
             // ⚠️ applicationServerKey DOIT être un Uint8Array, pas une string base64

@@ -97,8 +97,10 @@ export async function GET(req: NextRequest) {
         )
         sent++
       } catch (err: unknown) {
-        // Endpoint expiré (user a désinstallé) → on le supprime
-        if ((err as { statusCode?: number }).statusCode === 410) {
+        const code = (err as { statusCode?: number }).statusCode
+        // 410/404 : endpoint expiré (désinstallation). 403 : abonnement signé
+        // avec une ancienne clé VAPID → mort, le client devra se réabonner.
+        if (code === 410 || code === 404 || code === 403) {
           staleEndpoints.push(sub.endpoint)
         }
       }

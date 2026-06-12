@@ -41,8 +41,10 @@ export async function POST(req: NextRequest) {
       } catch (err) {
         const e = err as { statusCode?: number; body?: string; message?: string }
         lastError = { statusCode: e.statusCode, body: e.body, message: e.message }
-        // Abonnement expiré (410) → on le nettoie
-        if (e.statusCode === 410 || e.statusCode === 404) {
+        console.error('[push/test] envoi échoué:', e.statusCode, e.body || e.message)
+        // 410/404 : endpoint expiré. 403 : abonnement créé avec une ancienne
+        // clé VAPID → inutilisable, le client doit se réabonner.
+        if (e.statusCode === 410 || e.statusCode === 404 || e.statusCode === 403) {
           await admin.from('push_subscriptions').delete().eq('id', sub.id)
         }
       }
