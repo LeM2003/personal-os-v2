@@ -369,7 +369,7 @@ export default function Dashboard() {
   </>
   ) : (
   <p style={{ fontSize: 12, color: 'var(--muted)', margin: 0 }}>
-  Fixe tes budgets par categorie dans l'onglet Finances. Total ce mois : <strong style={{ color: 'var(--text)' }}>{monthExpTotal.toLocaleString('fr-FR')} F</strong>
+  Fixe tes budgets par catégorie dans l'onglet Finances. Total ce mois : <strong style={{ color: 'var(--text)' }}>{monthExpTotal.toLocaleString('fr-FR')} F</strong>
   </p>
   )}
   </div>

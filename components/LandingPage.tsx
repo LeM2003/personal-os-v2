@@ -143,6 +143,12 @@ export default function LandingPage({ onStart }: { onStart: (profile: UserProfil
         <p style={{ fontSize: 11, color: 'var(--muted)', letterSpacing: .3 }}>
           Données sécurisées · Synchronisées sur tous tes appareils
         </p>
+        <button type="button" onClick={() => onStart({ prenom: 'toi', mode: 'les-deux' })}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', marginTop: 10,
+            color: 'var(--accent-1)', fontSize: 13, fontWeight: 600,
+            fontFamily: 'var(--font-dm-sans, DM Sans)', textDecoration: 'underline', textUnderlineOffset: 3 }}>
+          ou essaie d'abord sans compte →
+        </button>
       </header>
 
       {/* ── STATS BAR ── */}
@@ -406,11 +412,13 @@ export default function LandingPage({ onStart }: { onStart: (profile: UserProfil
                 onKeyDown={e => e.key === 'Enter' && handleAuth()} />
               <input type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })}
                 placeholder="Mot de passe * (6 caractères min)"
+                autoComplete={authMode === 'signin' ? 'current-password' : 'new-password'}
                 onKeyDown={e => e.key === 'Enter' && handleAuth()} />
               {authMode === 'signup' && (
                 <input type="password" value={form.confirmPassword}
                   onChange={e => setForm({ ...form, confirmPassword: e.target.value })}
                   placeholder="Confirmer le mot de passe *"
+                  autoComplete="new-password"
                   onKeyDown={e => e.key === 'Enter' && handleAuth()} />
               )}
             </div>
@@ -447,6 +455,22 @@ export default function LandingPage({ onStart }: { onStart: (profile: UserProfil
                 ? 'En créant un compte tu acceptes que tes données soient stockées de façon sécurisée.'
                 : 'Tes données sont chiffrées et sécurisées.'}
             </p>
+
+            {/* Mode invité : zéro friction pour découvrir l'app (lien partagé) */}
+            {authMode === 'signup' && (
+              <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--border)', textAlign: 'center' }}>
+                <button type="button" onClick={() => onStart({ prenom: 'toi', mode: 'les-deux' })}
+                  style={{ background: 'none', border: '1px dashed rgba(56,189,248,.4)', borderRadius: 10,
+                    cursor: 'pointer', padding: '10px 18px', width: '100%',
+                    color: 'var(--accent-1)', fontSize: 13, fontWeight: 600,
+                    fontFamily: 'var(--font-dm-sans, DM Sans)' }}>
+                  👀 Essayer d'abord sans compte
+                </button>
+                <p style={{ fontSize: 10, color: 'var(--muted)', marginTop: 8, lineHeight: 1.5 }}>
+                  Tes données restent sur cet appareil. Crée un compte plus tard pour les synchroniser.
+                </p>
+              </div>
+            )}
           </div>
         </div>
       )}

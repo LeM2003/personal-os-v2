@@ -223,7 +223,7 @@ return (
             {preview.taches.length > 0 && (
               <div style={{ marginBottom: 16 }}>
                 <p style={{ fontSize: 13, fontWeight: 700, color: '#5B8DBF', marginBottom: 8, fontFamily: 'Fraunces' }}>
-                  ✅ Taches ({preview.taches.length})
+                  ✅ Tâches ({preview.taches.length})
                 </p>
                 {preview.taches.map((t, i) => (
                   <label key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '8px 12px',

@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { haptic } from '@/utils/haptics'
 
 interface BottomSheetProps {
@@ -59,14 +60,20 @@ export default function BottomSheet({ open, onClose, children, title, maxHeight 
     setDrag(0)
   }
 
-  if (!mounted) return null
+  if (!mounted || typeof document === 'undefined') return null
 
   const visible    = open && mounted
   const translateY = visible ? drag : 800
 
-  return (
+  // Portal sur <body> : la sheet est sinon rendue dans .main-content qui crée
+  // son propre stacking context (z-index 1) — n'importe quel z-index interne
+  // resterait DERRIÈRE .bottom-nav (z-index 200), qui interceptait les taps
+  // sur le bas de la sheet (boutons Ajouter/Annuler/Supprimer inaccessibles).
+  return createPortal(
     <div onClick={onClose} style={{
-      position: 'fixed', inset: 0, zIndex: 100,
+      // 600 : au-dessus de .bottom-nav (200) et du bouton assistant (500),
+      // sous .modal-overlay (999).
+      position: 'fixed', inset: 0, zIndex: 600,
       background: 'rgba(0,0,0,.45)',
       backdropFilter: 'blur(6px)',
       WebkitBackdropFilter: 'blur(6px)',
@@ -90,7 +97,7 @@ export default function BottomSheet({ open, onClose, children, title, maxHeight 
           style={{
             padding: '10px 20px 8px',
             display: 'flex', flexDirection: 'column', alignItems: 'center',
-            touchAction: 'none', flexShrink: 0,
+            touchAction: 'none', flexShrink: 0, position: 'relative',
           }}>
           <div style={{ width: 38, height: 5, borderRadius: 999, background: 'var(--border)', marginBottom: title ? 10 : 0 }} />
           {title && (
@@ -98,13 +105,26 @@ export default function BottomSheet({ open, onClose, children, title, maxHeight 
               {title}
             </h3>
           )}
+          {/* Fermeture explicite au doigt (le drag/overlay ne suffit pas toujours) */}
+          <button onClick={onClose} type="button" aria-label="Fermer"
+            style={{
+              position: 'absolute', top: 10, right: 14,
+              width: 30, height: 30, borderRadius: 999,
+              background: 'rgba(128,128,128,.14)', border: 'none',
+              color: 'var(--muted)', fontSize: 15, lineHeight: 1,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer',
+            }}>
+            ✕
+          </button>
         </div>
 
         {/* Contenu scrollable */}
-        <div style={{ padding: '6px 20px 24px', overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
+        <div style={{ padding: '6px 20px calc(24px + env(safe-area-inset-bottom, 0px))', overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
           {children}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

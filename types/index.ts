@@ -230,6 +230,7 @@ export interface UserProfile {
   mode: UserMode
   customTabs?: string[]
   objectif?: string
+  onboarding_done?: boolean
 }
 
 // ── Streak ───────────────────────────────────────────────────────────────────

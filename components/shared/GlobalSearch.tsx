@@ -75,7 +75,7 @@ return (
       borderBottom: 'none', padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 12 }}>
       <span style={{ fontSize: 20, flexShrink: 0 }}>🔍</span>
       <input ref={inputRef} value={query} onChange={e => setQuery(e.target.value)}
-        placeholder="Rechercher taches, devoirs, examens, projets, dépenses..."
+        placeholder="Rechercher tâches, devoirs, examens, projets, dépenses..."
         style={{ border: 'none', background: 'transparent', fontSize: 16, padding: 0,
         outline: 'none', boxShadow: 'none', color: 'var(--text)' }} />
       <kbd style={{ background: 'var(--bar-bg)', border: '1px solid var(--border)', borderRadius: 5,

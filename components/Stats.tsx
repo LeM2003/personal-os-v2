@@ -124,7 +124,7 @@ function HabitGrid({ tasks }: { tasks: Task[] }) {
     const first = week.find(d => d)
     if (!first) return
     const month = first.date.getMonth()
-    if (wi === 0 || month !== weeks[wi-1]?.[0]?.date?.getMonth()) {
+    if (wi === 0 || month !== weeks[wi-1]?.find(d => d)?.date?.getMonth()) {
       monthLabels.push({ wi, label: MONTHS_FR[month] })
     }
   })

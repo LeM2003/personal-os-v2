@@ -78,7 +78,8 @@ const generateBriefing = async () => {
         context: { profile, tasks, examens, devoirs, projects, expenses, streak },
       }),
     })
-    if (!res.body) throw new Error()
+    // Un 500 a aussi un body : sans ce check, le JSON d'erreur brut s'affichait
+    if (!res.ok || !res.body) throw new Error()
     const reader = res.body.getReader()
     const decoder = new TextDecoder()
     let text = ''

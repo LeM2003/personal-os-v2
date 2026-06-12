@@ -379,7 +379,7 @@ export default function Depenses() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14,
           padding: '8px 12px', background: 'rgba(91,141,191,.05)', borderRadius: 8, border: '1px solid rgba(91,141,191,.15)' }}>
           <span style={{ fontSize: 12, color: 'var(--muted)' }}>
-            {filteredHistory.length} depense{filteredHistory.length !== 1 ? 's' : ''}
+            {filteredHistory.length} dépense{filteredHistory.length !== 1 ? 's' : ''}
           </span>
           <span style={{ fontSize: 14, fontWeight: 700, color: '#5B8DBF' }}>
             {filteredTotal.toLocaleString('fr-FR')} FCFA

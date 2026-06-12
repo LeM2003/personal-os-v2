@@ -43,11 +43,15 @@ export function taskToRow(task: Task, userId: string): Record<string, any> {
     flexible: task.flexible ?? false,
     subtasks: task.subtasks ?? [],
     folder_id: task.folderId || null,
-    linked_devoir_id: task.linkedDevoirId || null,
+    // linked_devoir_id a une FK vers public.devoirs, mais les devoirs ne sont pas
+    // encore synchronisés (localStorage only) → l'id n'existe pas en base et la FK
+    // fait échouer TOUT le batch upsert (409). Lien gardé dans metadata jusqu'à
+    // la Phase C (sync devoirs).
+    linked_devoir_id: null,
     ai_generated: false,
     position: 0,
     tags: [],
-    metadata: { project: task.project || null },
+    metadata: { project: task.project || null, linkedDevoirId: task.linkedDevoirId || null },
   }
 }
 
@@ -71,7 +75,7 @@ export function rowToTask(row: Record<string, any>): Task {
     flexible: (row.flexible as boolean) ?? false,
     subtasks: row.subtasks ?? [],
     folderId: (row.folder_id as string) || undefined,
-    linkedDevoirId: (row.linked_devoir_id as string) || undefined,
+    linkedDevoirId: (row.linked_devoir_id as string) || (meta.linkedDevoirId as string) || undefined,
     project: (meta.project as string) || undefined,
     createdAt: (row.created_at as string) || undefined,
   }

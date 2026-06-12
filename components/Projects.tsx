@@ -308,7 +308,7 @@ export default function Projets() {
       `Notes/Plan : ${proj.notes || 'Aucune'}`,
       `Etapes (${steps.filter(s => s.done).length}/${steps.length} faites) :`,
       steps.length ? steps.map(s => ` ${s.done ? '✓' : '○'} ${s.text}`).join('\n') : ' Aucune',
-      `Taches liees (${linked.filter(t => t.status === 'Terminé').length}/${linked.length} terminees) :`,
+      `Tâches liées (${linked.filter(t => t.status === 'Terminé').length}/${linked.length} terminées) :`,
       linked.length ? linked.map(t => ` - ${t.name} (${t.status})`).join('\n') : ' Aucune',
     ].join('\n')
 

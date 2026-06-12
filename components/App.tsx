@@ -95,6 +95,14 @@ export default function App() {
     try { return localStorage.getItem('onboardingDone') === '1' } catch { return false }
   })
 
+  // Sync avec Supabase : si onboarding déjà fait sur un autre appareil
+  useEffect(() => {
+    if (profile?.onboarding_done && !onboardingDone) {
+      try { localStorage.setItem('onboardingDone', '1') } catch { /* ignore */ }
+      setOnboardingDone(true)
+    }
+  }, [profile?.onboarding_done])
+
   const logout = async () => {
     if (typeof window === 'undefined') return
     if (!confirm('Veux-tu te déconnecter ? Tes données locales restent sauvegardées.')) return

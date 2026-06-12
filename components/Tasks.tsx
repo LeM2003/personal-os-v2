@@ -539,6 +539,16 @@ export default function Taches() {
           <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
             <button className="btn-gold" onClick={saveTask}>{editingId ? 'Enregistrer' : 'Ajouter'}</button>
             <button className="btn-ghost" onClick={closeForm}>Annuler</button>
+            {editingId && (
+              <button className="btn-ghost" style={{ marginLeft: 'auto', color: '#f87171', borderColor: 'rgba(248,113,113,.35)' }}
+                onClick={() => {
+                  if (!confirm('Supprimer cette tâche ?')) return
+                  del(editingId)
+                  closeForm()
+                }}>
+                Supprimer
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -580,7 +590,7 @@ export default function Taches() {
               {countCritique > 0 && <span style={{ color: '#f87171' }}>{countCritique} critique{countCritique > 1 ? 's' : ''}</span>}
               {countImportant > 0 && <span style={{ color: '#5B8DBF' }}>{countImportant} important{countImportant > 1 ? 'es' : 'e'}</span>}
               {countOptionnel > 0 && <span style={{ color: 'var(--muted)' }}>{countOptionnel} optionnel{countOptionnel > 1 ? 'les' : 'le'}</span>}
-              {doneTasks.length > 0 && <span style={{ color: '#4ade80' }}>{doneTasks.length} terminee{doneTasks.length > 1 ? 's' : ''}</span>}
+              {doneTasks.length > 0 && <span style={{ color: '#4ade80' }}>{doneTasks.length} terminée{doneTasks.length > 1 ? 's' : ''}</span>}
             </div>
           </div>
         )
@@ -643,7 +653,7 @@ export default function Taches() {
         : <>
           {activeTasks.length === 0 && !showDone
             ? <div style={{ textAlign: 'center', padding: '30px 0', color: 'var(--muted)', fontSize: 14 }}>
-                Toutes les taches sont terminees pour cette periode !
+                Toutes les tâches sont terminées pour cette période !
               </div>
             : Object.entries(grouped).map(([priority, list]) => list.length === 0 ? null : (
               <div key={priority} style={{ marginBottom: 24 }}>
@@ -675,12 +685,12 @@ export default function Taches() {
             ))
           }
 
-          {/* ── Taches terminees (cachees par defaut) ── */}
+          {/* ── Tâches terminées (cachées par défaut) ── */}
           {doneTasks.length > 0 && (
             <div style={{ marginTop: 16 }}>
               <button className="btn-ghost" onClick={() => setShowDone(s => !s)}
                 style={{ width: '100%', fontSize: 13, padding: '10px 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                {showDone ? <><ChevronUp size={14} /> Masquer</> : <><ChevronDown size={14} /> Voir</>} les taches terminees ({doneTasks.length})
+                {showDone ? <><ChevronUp size={14} /> Masquer</> : <><ChevronDown size={14} /> Voir</>} les tâches terminées ({doneTasks.length})
               </button>
               {showDone && (
                 <div style={{ marginTop: 14, opacity: .75 }}>

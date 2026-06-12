@@ -16,11 +16,31 @@ const fraunces = Fraunces({
   display: 'swap',
 })
 
+const SITE_URL = 'https://personal-os.click'
+const TITLE = 'Personal OS — Toute ta vie, organisée. Une seule app.'
+const DESCRIPTION =
+  'Tâches, budget en FCFA, école, projets, habitudes — tout au même endroit. ' +
+  'Gratuit, hors ligne, prêt en 30 secondes. Pensé pour les étudiants et entrepreneurs.'
+
 export const metadata: Metadata = {
-  title: 'Personal OS',
-  description: 'Ton tableau de bord personnel',
+  metadataBase: new URL(SITE_URL),
+  title: { default: TITLE, template: '%s · Personal OS' },
+  description: DESCRIPTION,
   manifest: '/manifest.json',
   appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: 'Personal OS' },
+  openGraph: {
+    type: 'website',
+    url: SITE_URL,
+    siteName: 'Personal OS',
+    title: TITLE,
+    description: DESCRIPTION,
+    locale: 'fr_FR',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: TITLE,
+    description: DESCRIPTION,
+  },
 }
 
 export const viewport: Viewport = {

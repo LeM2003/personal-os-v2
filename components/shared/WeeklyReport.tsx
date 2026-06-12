@@ -282,8 +282,8 @@ export default function WeeklyReport({ tasks, expenses, subscriptions, projects,
 
             {/* KPIs row */}
             <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
-              <StatBox label="Taches terminees" value={`${totalDone}/${totalCreated}`}
-                sub={`${completionRate}% de completion`}
+              <StatBox label="Tâches terminées" value={`${totalDone}/${totalCreated}`}
+                sub={`${completionRate}% de complétion`}
                 color={completionRate >= 70 ? '#4ade80' : completionRate >= 40 ? '#5B8DBF' : '#f87171'} />
               <StatBox label="Streak" value={`${streakData?.count || 0}j`}
                 sub="jours consecutifs" color="#f59e0b" />

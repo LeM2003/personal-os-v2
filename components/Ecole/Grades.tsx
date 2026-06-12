@@ -232,7 +232,9 @@ function HeroAvg({ avg, stats }: { avg: number; stats: SubjectStat[] }) {
   const shown = stats.slice(0, 6)
   return (
     <div style={{
-      background: 'var(--text)', color: '#F5F3ED',
+      // Carte inversée : fond = couleur du texte du thème, texte = couleur du fond
+      // (un texte clair codé en dur devient invisible en thème sombre)
+      background: 'var(--text)', color: 'var(--bg)',
       borderRadius: 16, padding: '16px 18px', marginBottom: 18,
       display: 'flex', alignItems: 'center', gap: 12,
       boxShadow: '0 4px 14px rgba(0,0,0,.12)',
