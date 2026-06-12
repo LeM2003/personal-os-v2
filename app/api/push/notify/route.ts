@@ -46,18 +46,37 @@ export async function GET(req: NextRequest) {
       const [examsRes, devoirsRes, tasksRes] = await Promise.all([
         supabase.from('exams').select('subject, exam_date').eq('user_id', sub.user_id).eq('status', 'upcoming'),
         supabase.from('devoirs').select('subject, due_date').eq('user_id', sub.user_id).in('status', ['todo', 'doing']),
-        supabase.from('tasks').select('title').eq('user_id', sub.user_id).eq('status', 'todo').eq('recurring', true),
+        // Toutes les tâches non terminées : habitudes + tâches datées.
+        // Les habitudes complétées hier peuvent rester 'done' en base tant que
+        // l'app n'a pas été rouverte (le reset quotidien est client-side) →
+        // on filtre sur last_completed_at plutôt que sur le statut seul.
+        supabase.from('tasks')
+          .select('title, due_date, status, recurring, last_completed_at')
+          .eq('user_id', sub.user_id)
+          .neq('status', 'archived'),
       ])
 
       const todayExams    = (examsRes.data || []).filter(e => e.exam_date?.startsWith(today))
       const tomorrowExams = (examsRes.data || []).filter(e => e.exam_date?.startsWith(tomorrowISO))
       const urgentDevoirs = (devoirsRes.data || []).filter(d => d.due_date?.startsWith(today) || d.due_date?.startsWith(tomorrowISO))
-      const recurringToday = tasksRes.data || []
+
+      const allTasks = tasksRes.data || []
+      const recurringToday = allTasks.filter(t =>
+        t.recurring && (!t.last_completed_at || t.last_completed_at < today)
+      )
+      // Tâches datées dues aujourd'hui ou en retard, pas encore terminées
+      const dueTasks = allTasks.filter(t =>
+        !t.recurring && t.status !== 'done' && t.due_date && t.due_date.slice(0, 10) <= today
+      )
 
       const lines: string[] = []
       if (todayExams.length)    lines.push(`📝 Examen aujourd'hui : ${todayExams.map(e => e.subject).join(', ')}`)
       if (tomorrowExams.length) lines.push(`⚠️ Examen demain : ${tomorrowExams.map(e => e.subject).join(', ')}`)
       if (urgentDevoirs.length) lines.push(`📚 Devoir urgent : ${urgentDevoirs.map(d => d.subject).join(', ')}`)
+      if (dueTasks.length) {
+        const names = dueTasks.slice(0, 2).map(t => t.title).join(', ')
+        lines.push(`✅ ${dueTasks.length} tâche${dueTasks.length > 1 ? 's' : ''} à terminer : ${names}${dueTasks.length > 2 ? '…' : ''}`)
+      }
       if (timeCtx === 'matin' && recurringToday.length)
         lines.push(`🔁 ${recurringToday.length} habitude${recurringToday.length > 1 ? 's' : ''} à faire aujourd'hui`)
 
@@ -92,7 +111,8 @@ export async function GET(req: NextRequest) {
     }
 
     return NextResponse.json({ sent, cleaned: staleEndpoints.length })
-  } catch {
+  } catch (err) {
+    console.error('[push/notify] échec:', err)
     return NextResponse.json({ error: 'Server error' }, { status: 500 })
   }
 }

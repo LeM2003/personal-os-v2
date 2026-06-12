@@ -109,6 +109,28 @@ export default function Settings() {
   const [accountOpen, setAccountOpen] = useState(false)
   const [newFeedbacks, setNewFeedbacks] = useState(0)
   const [isAdmin, setIsAdmin] = useState(false)
+  const [pushTest, setPushTest] = useState<'idle' | 'sending' | 'ok' | 'no_sub' | 'error'>('idle')
+
+  // Envoie une vraie notification Web Push de test via le serveur
+  const testPush = async () => {
+    haptic(3)
+    setPushTest('sending')
+    try {
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.access_token) { setPushTest('no_sub'); return }
+      const res = await fetch('/api/push/test', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      })
+      if (res.ok) setPushTest('ok')
+      else if (res.status === 404) setPushTest('no_sub')
+      else setPushTest('error')
+    } catch {
+      setPushTest('error')
+    }
+    setTimeout(() => setPushTest('idle'), 6000)
+  }
 
   // Fetch count feedbacks non-lus (visible uniquement si superadmin/admin)
   useEffect(() => {
@@ -233,6 +255,21 @@ export default function Settings() {
             {notifEnabled ? 'Activées ✓' : 'Activer'}
           </button>
         </Row>
+        {notifEnabled && (
+          <Row label="Tester les notifications" hint={
+            pushTest === 'ok' ? 'Notification envoyée — vérifie ton appareil 🎉'
+            : pushTest === 'no_sub' ? 'Aucun abonnement — réactive les rappels (connexion requise)'
+            : pushTest === 'error' ? "L'envoi a échoué — réessaie plus tard"
+            : 'Envoie une notification de test à cet appareil.'
+          }>
+            <button className="btn-ghost" style={{ fontSize: 13,
+              color: pushTest === 'ok' ? '#4ade80' : pushTest === 'error' || pushTest === 'no_sub' ? '#f87171' : undefined }}
+              disabled={pushTest === 'sending'}
+              onClick={testPush}>
+              {pushTest === 'sending' ? 'Envoi…' : pushTest === 'ok' ? 'Envoyée ✓' : 'Tester 🔔'}
+            </button>
+          </Row>
+        )}
       </Section>
 
       {/* ── Comportement ── */}
