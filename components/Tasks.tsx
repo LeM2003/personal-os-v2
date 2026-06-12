@@ -132,10 +132,20 @@ export default function Taches() {
     const duration = form.durationH * 60 + form.durationM
     const deadline = form.recurring && !form.deadline ? todayISO() : form.deadline
     const folderId = form.folderId || undefined
+    // Hebdo sans jour coché : on présélectionne aujourd'hui — sinon la tâche
+    // ne matche jamais « Aujourd'hui » et semble ne pas s'être ajoutée.
+    const recurrenceDays = form.recurring && form.recurrence === 'weekly' && !form.recurrenceDays.length
+      ? [dayName] : form.recurrenceDays
     if (editingId) {
-      setTasks(p => p.map(t => t.id === editingId ? { ...t, ...form, duration, deadline, folderId } : t))
+      setTasks(p => p.map(t => t.id === editingId ? { ...t, ...form, recurrenceDays, duration, deadline, folderId } : t))
     } else {
-      setTasks(p => [...p, { ...form, duration, deadline, folderId, id: genId(), status: 'À faire' as TaskStatus, createdAt: todayISO(), lastCompletedAt: null }])
+      setTasks(p => [...p, { ...form, recurrenceDays, duration, deadline, folderId, id: genId(), status: 'À faire' as TaskStatus, createdAt: todayISO(), lastCompletedAt: null }])
+      // Si la nouvelle tâche ne matche pas le filtre de date courant, elle est
+      // invisible → l'utilisateur croit que l'ajout a échoué. On élargit.
+      const visibleToday = form.recurring
+        ? (form.recurrence === 'daily' || (form.recurrence === 'weekly' && recurrenceDays.includes(dayName)) || (form.recurrence === 'monthly' && deadline === today))
+        : deadline === today
+      if (fDate === "Aujourd'hui" && !visibleToday) setFDate(deadline && deadline <= weekEnd ? 'Semaine' : 'Tout')
     }
     closeForm()
   }

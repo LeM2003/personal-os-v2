@@ -82,12 +82,12 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
     })
   }, [setFolders])
 
-  /* ── Initialisation : réinitialisation des récurrentes + déplacement des retards
-        en un seul effet pour éviter la race condition entre les deux passes. ── */
-  const didInitRef = useRef(false)
+  /* ── Réinitialisation des récurrentes + déplacement des retards.
+        Rejoué à chaque changement de `tasks` (idempotent — se stabilise dès
+        qu'il n'y a plus rien à réinitialiser) : le pull Supabase remplace
+        l'état APRÈS le montage et réintroduit l'état d'hier (statut Terminé,
+        sous-tâches cochées) — un reset une-seule-fois au montage est écrasé. ── */
   useEffect(() => {
-    if (didInitRef.current) return
-    didInitRef.current = true
     const today = todayISO()
 
     setTasks(prev => {
@@ -135,7 +135,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
       return resetRecurring.filter(t => !idsToRemove.has(t.id))
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [tasks, adjustments])
 
   /* ── Pomodoro ── */
   const [pomo, setPomo] = useState<PomodoroState | null>(null)
