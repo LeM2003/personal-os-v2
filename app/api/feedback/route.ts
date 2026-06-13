@@ -45,14 +45,16 @@ export async function POST(req: NextRequest) {
 
     // Notification email à l'admin — best-effort, ne bloque jamais l'enregistrement.
     const resendKey = process.env.RESEND_API_KEY
+    let emailDebug: unknown = 'skipped (no RESEND_API_KEY)'
     if (resendKey) {
+      const who = body.email ? `${body.email}` : 'testeur anonyme (mode invité)'
+      const from = process.env.FEEDBACK_FROM || 'Personal OS <onboarding@resend.dev>'
       try {
-        const who = body.email ? `${body.email}` : 'testeur anonyme (mode invité)'
-        await fetch('https://api.resend.com/emails', {
+        const r = await fetch('https://api.resend.com/emails', {
           method: 'POST',
           headers: { Authorization: `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            from: 'Personal OS <onboarding@resend.dev>',
+            from,
             to: ['metzod237@gmail.com'],
             subject: `[Personal OS] ${TYPE_LABELS[type]} — nouveau retour`,
             html: `
@@ -64,12 +66,17 @@ export async function POST(req: NextRequest) {
               </div>`,
           }),
         })
+        const txt = await r.text()
+        emailDebug = { status: r.status, ok: r.ok, from, body: txt.slice(0, 500) }
+        if (!r.ok) console.error('[feedback] Resend a refusé:', r.status, txt)
       } catch (e) {
+        emailDebug = { thrown: String(e), from }
         console.error('[feedback] email Resend échoué:', e)
       }
     }
 
-    return NextResponse.json({ ok: true })
+    // emailDebug renvoyé temporairement pour diagnostiquer la livraison.
+    return NextResponse.json({ ok: true, emailDebug })
   } catch {
     return NextResponse.json({ error: 'server' }, { status: 500 })
   }
