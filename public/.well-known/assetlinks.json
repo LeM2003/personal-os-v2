@@ -3,9 +3,9 @@
     "relation": ["delegate_permission/common.handle_all_urls"],
     "target": {
       "namespace": "android_app",
-      "package_name": "com.mouhamadou.personalos",
+      "package_name": "click.personalos.app",
       "sha256_cert_fingerprints": [
-        "1A:09:64:D3:60:36:F6:02:74:B8:23:3B:74:50:9B:FF:80:DF:12:41:F0:4E:E8:5D:A5:A4:18:4B:33:92:6E:91"
+        "65:26:ED:CC:A1:EB:92:6A:33:45:EA:7F:FC:62:F1:A3:73:25:31:12:55:E5:C0:3D:78:79:FD:12:B3:7A:FD:4D"
       ]
     }
   }
