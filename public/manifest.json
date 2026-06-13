@@ -19,5 +19,10 @@
   "shortcuts": [
     { "name": "Tâches",   "short_name": "Tâches",   "url": "/?tab=taches",   "description": "Ouvrir les tâches" },
     { "name": "Finances", "short_name": "Finances", "url": "/?tab=finances", "description": "Ouvrir les finances" }
+  ],
+  "screenshots": [
+    { "src": "/screenshots/01-landing.png",   "sizes": "412x915", "type": "image/png", "form_factor": "narrow", "label": "Toute ta vie, organisée. Une seule app." },
+    { "src": "/screenshots/02-dashboard.png", "sizes": "412x915", "type": "image/png", "form_factor": "narrow", "label": "Ton tableau de bord du jour" },
+    { "src": "/screenshots/03-tasks.png",     "sizes": "412x915", "type": "image/png", "form_factor": "narrow", "label": "Tes tâches, priorités et échéances" }
   ]
 }
