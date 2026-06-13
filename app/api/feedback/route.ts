@@ -45,17 +45,20 @@ export async function POST(req: NextRequest) {
 
     // Notification email à l'admin — best-effort, ne bloque jamais l'enregistrement.
     const resendKey = process.env.RESEND_API_KEY
-    let emailDebug: unknown = 'skipped (no RESEND_API_KEY)'
     if (resendKey) {
       const who = body.email ? `${body.email}` : 'testeur anonyme (mode invité)'
+      // onboarding@resend.dev ne livre qu'au propriétaire du compte Resend
+      // (dioufmouha71@gmail.com). Pour livrer ailleurs : vérifier le domaine
+      // personal-os.click dans Resend puis poser FEEDBACK_FROM + FEEDBACK_TO.
       const from = process.env.FEEDBACK_FROM || 'Personal OS <onboarding@resend.dev>'
+      const to = process.env.FEEDBACK_TO || 'dioufmouha71@gmail.com'
       try {
         const r = await fetch('https://api.resend.com/emails', {
           method: 'POST',
           headers: { Authorization: `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({
             from,
-            to: ['metzod237@gmail.com'],
+            to: [to],
             subject: `[Personal OS] ${TYPE_LABELS[type]} — nouveau retour`,
             html: `
               <div style="font-family:system-ui,sans-serif;max-width:560px">
@@ -66,17 +69,13 @@ export async function POST(req: NextRequest) {
               </div>`,
           }),
         })
-        const txt = await r.text()
-        emailDebug = { status: r.status, ok: r.ok, from, body: txt.slice(0, 500) }
-        if (!r.ok) console.error('[feedback] Resend a refusé:', r.status, txt)
+        if (!r.ok) console.error('[feedback] Resend a refusé:', r.status, await r.text())
       } catch (e) {
-        emailDebug = { thrown: String(e), from }
         console.error('[feedback] email Resend échoué:', e)
       }
     }
 
-    // emailDebug renvoyé temporairement pour diagnostiquer la livraison.
-    return NextResponse.json({ ok: true, emailDebug })
+    return NextResponse.json({ ok: true })
   } catch {
     return NextResponse.json({ error: 'server' }, { status: 500 })
   }
