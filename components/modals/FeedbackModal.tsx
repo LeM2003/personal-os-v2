@@ -23,20 +23,26 @@ export default function FeedbackModal({ onClose }: { onClose: () => void }) {
     if (!message.trim()) return
     setLoading(true); setError('')
     try {
+      // On récupère l'identité si connecté, mais l'envoi passe par /api/feedback
+      // (service_role) pour que les testeurs EN MODE INVITÉ puissent aussi écrire.
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
-      await supabase.from('feedback').insert({
-        user_id: user?.id ?? null,
-        email: user?.email ?? null,
-        type,
-        message: message.trim(),
-        page: 'settings',
-        device_info: {
-          userAgent: typeof navigator !== 'undefined' ? navigator.userAgent.slice(0, 200) : '',
-          language: typeof navigator !== 'undefined' ? navigator.language : '',
-        },
-        status: 'new',
+      const res = await fetch('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user?.id ?? null,
+          email: user?.email ?? null,
+          type,
+          message: message.trim(),
+          page: 'settings',
+          deviceInfo: {
+            userAgent: typeof navigator !== 'undefined' ? navigator.userAgent.slice(0, 200) : '',
+            language: typeof navigator !== 'undefined' ? navigator.language : '',
+          },
+        }),
       })
+      if (!res.ok) throw new Error()
       haptic(8)
       setSent(true)
     } catch {
