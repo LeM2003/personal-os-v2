@@ -137,20 +137,29 @@ personal-os-v2/
 ├── data/                   # localStorage helpers → migration Supabase en cours
 ├── hooks/                  # Custom hooks (useTheme, useStreak, useNotifications)
 ├── public/                 # PWA assets (icons, sw.js, manifest)
-└── supabase/migrations/    # Migrations SQL versionnées (11 tables + RLS)
+└── supabase/migrations/    # Migrations SQL versionnées (12 tables + RLS)
 ```
 
 ---
 
 ## 🎯 Roadmap
 
+**En production ✅**
+
 - [x] **V2.0** — Refonte UI + migration TypeScript complète
-- [x] **V2.1** — Backend Supabase (schéma SQL complet, 11 tables + RLS)
-- [ ] **V2.2** — Auth Supabase (email/password + magic link)
-- [ ] **V2.3** — Migration `localStorage` → Supabase + sync multi-device (Realtime)
+- [x] **V2.1** — Backend Supabase (schéma SQL complet, 12 tables + RLS)
+- [x] **V2.2** — Auth Supabase (email/password + reset par email)
+- [x] **V2.3** — Sync multi-appareils (tâches, dossiers, projets, dépenses)
+- [x] **Notifications** — Web Push VAPID (rappels matin / midi / soir)
+- [x] **Distribution** — PWA installable + APK Android + mode invité (essai sans compte)
+- [x] **Feedback in-app** — retour direct (bug / suggestion / éloge) + alerte email
+
+**À venir**
+
+- [ ] **Phase C** — Sync École (examens, devoirs) + abonnements/dettes/épargne → Supabase
 - [ ] **V2.4** — Vue Calendrier hebdo
-- [ ] **V2.5** — Mode collaboratif (workspaces partagés)
-- [ ] **V3.0** — Pricing FCFA + lancement campus UCAD
+- [ ] **V3.0** — Pricing FCFA (Free / Pro étudiant / Pro entrepreneur) + lancement campus UCAD/UMEF
+- [ ] **V3.1** — Mode collaboratif (workspaces partagés)
 
 Voir les [issues](https://github.com/LeM2003/personal-os-v2/issues) pour le détail.
 
@@ -158,7 +167,13 @@ Voir les [issues](https://github.com/LeM2003/personal-os-v2/issues) pour le dét
 
 ## 🤝 Feedback
 
-Tu utilises Personal OS V2 ? Ouvre une [issue](https://github.com/LeM2003/personal-os-v2/issues) ou écris-moi sur [LinkedIn](https://www.linkedin.com/in/mouhamadou-diouf). Tout retour compte.
+Tu utilises Personal OS V2 ? Trois façons de me dire ce que tu en penses :
+
+- **Dans l'app** — Réglages → « Ton retour » (bug / suggestion / éloge). Marche même sans compte.
+- **GitHub** — ouvre une [issue](https://github.com/LeM2003/personal-os-v2/issues).
+- **LinkedIn** — [écris-moi](https://www.linkedin.com/in/mouhamadou-diouf).
+
+Tout retour compte.
 
 ---
 
