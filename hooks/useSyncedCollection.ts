@@ -58,8 +58,16 @@ export function useSyncedCollection<T>(
         }
         const { data } = await query
         if (cancelled || !data) return
-        remoteIds.current = new Set(data.map(r => r.id as string))
-        if (data.length > 0) setItems(data.map(config.fromRow))
+        const serverIds = new Set(data.map(r => r.id as string))
+        remoteIds.current = serverIds
+        // MERGE (pas d'écrasement) : le serveur fait autorité sur les IDs qu'il
+        // connaît, mais on PRÉSERVE les éléments locaux absents du serveur — typiquement
+        // ceux créés hors-ligne et pas encore poussés. Un simple setItems(serverData)
+        // les détruisait au pull suivant la reconnexion (cause racine du "plus de tâches").
+        // Ils seront upsertés au prochain push (remoteIds = serverIds → aucun DELETE diff).
+        const serverItems = data.map(config.fromRow)
+        const localOnly = itemsRef.current.filter(i => !serverIds.has(config.getId(i)))
+        setItems([...serverItems, ...localOnly])
       } catch {
         /* offline — on garde localStorage */
       } finally {
