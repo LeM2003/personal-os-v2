@@ -8,12 +8,12 @@ import type { UserProfile, UserMode } from '@/types'
 type AbstractMarkVariant = React.ComponentProps<typeof AbstractMark>['variant']
 
 const PROMISES: { mark: AbstractMarkVariant; label: string; sub: string }[] = [
-  { mark: 'rings', label: 'Tout à un seul endroit',
-    sub: 'Tâches, finances, apprentissage, projets.' },
+  { mark: 'rings', label: 'Plus rien ne t\'échappe',
+    sub: 'Tâches, finances, école, projets — un seul endroit, zéro chose oubliée.' },
   { mark: 'arc',   label: 'Un rythme qui te respecte',
     sub: 'Des rappels doux, jamais de pression inutile.' },
-  { mark: 'bars',  label: 'Des données qui te parlent',
-    sub: 'Tu vois ce que tu fais vraiment, sur la durée.' },
+  { mark: 'bars',  label: 'Tu vois où tu en es vraiment',
+    sub: 'Pas de surprise en fin de mois ou avant un examen.' },
 ]
 
 const CONTEXTES = ['Études', 'Formation', 'Travail', 'Freelance', 'Autre']
@@ -94,6 +94,16 @@ const MODES = [
     color: '#4ade80',
   },
 ]
+
+// Ce que ça change concrètement dans la vie de la personne — pas une liste de
+// fonctionnalités. L'idée : qu'elle voie tout de suite pourquoi elle ne devrait
+// pas lâcher l'app après 2 jours.
+const VALUE_BY_MODE: Record<string, string> = {
+  etudiant: "Plus aucun devoir oublié, plus de stress la veille d'un examen. Tes cours, tes échéances et ton budget, sous contrôle — sans y penser sans arrêt.",
+  entrepreneur: "Arrête de jongler entre 5 carnets et 3 apps. Vois en un coup d'œil où va ton argent et ce qui avance vraiment sur tes projets.",
+  'les-deux': "École et activité perso gérées au même endroit — rien ne tombe entre les deux.",
+  custom: "Construit exactement à ta façon : seulement ce qui te sert, rien de plus à gérer.",
+}
 
 const ALL_MODULE_OPTIONS = [
   { id: 'taches',      emoji: '✅', label: 'Tâches & habitudes' },
@@ -229,6 +239,19 @@ export default function Onboarding({ profile, onFinish }: OnboardingProps) {
             )
           })}
         </div>
+
+        {/* Pourquoi ça compte pour toi — pas une fonctionnalité, un changement concret */}
+        {mode && VALUE_BY_MODE[mode] && (
+          <div style={{
+            padding: '14px 16px', marginTop: 16, borderRadius: 14,
+            background: 'rgba(74,222,128,.06)', border: '1px solid rgba(74,222,128,.2)',
+            animation: 'pageIn .3s ease both',
+          }}>
+            <p style={{ margin: 0, fontSize: 13.5, color: 'var(--text)', lineHeight: 1.5 }}>
+              💡 {VALUE_BY_MODE[mode]}
+            </p>
+          </div>
+        )}
 
         {/* Sélecteur modules custom */}
         {mode === 'custom' && (
