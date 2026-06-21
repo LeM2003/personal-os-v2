@@ -1,7 +1,9 @@
 import type { Metadata, Viewport } from 'next'
+import { Analytics } from '@vercel/analytics/next'
 import { DM_Sans, Fraunces } from 'next/font/google'
 import SwRegister from '@/components/shared/SwRegister'
 import UpdateBanner from '@/components/shared/UpdateBanner'
+import WhatsNew from '@/components/shared/WhatsNew'
 import './globals.css'
 
 const dmSans = DM_Sans({
@@ -55,7 +57,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={`${dmSans.variable} ${fraunces.variable}`}>
         <SwRegister />
         <UpdateBanner />
+        <WhatsNew />
         {children}
+        <Analytics />
       </body>
     </html>
   )
