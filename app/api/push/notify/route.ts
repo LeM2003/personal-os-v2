@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import webpush from 'web-push'
 import { createClient } from '@/lib/supabase/server'
 
-// GET — appelé par le cron Vercel chaque matin à 07h00 UTC (Dakar)
+// Barème de points par priorité (même logique que utils/constants.ts côté client,
+// mais sur les valeurs stockées en base : low/medium/high/urgent)
+const DB_PRIORITY_WEIGHT: Record<string, number> = { urgent: 20, high: 10, medium: 10, low: 5 }
+
+// GET — appelé par le cron Vercel chaque soir à 20h00 UTC (Dakar)
 // Vercel envoie Authorization: Bearer {CRON_SECRET}
 export async function GET(req: NextRequest) {
   const auth = req.headers.get('authorization')
@@ -51,7 +55,7 @@ export async function GET(req: NextRequest) {
         // l'app n'a pas été rouverte (le reset quotidien est client-side) →
         // on filtre sur last_completed_at plutôt que sur le statut seul.
         supabase.from('tasks')
-          .select('title, due_date, status, recurring, last_completed_at')
+          .select('title, due_date, status, recurring, last_completed_at, priority')
           .eq('user_id', sub.user_id)
           .neq('status', 'archived'),
       ])
@@ -79,6 +83,22 @@ export async function GET(req: NextRequest) {
       }
       if (timeCtx === 'matin' && recurringToday.length)
         lines.push(`🔁 ${recurringToday.length} habitude${recurringToday.length > 1 ? 's' : ''} à faire aujourd'hui`)
+
+      // Score pondéré du jour (récap envoyé uniquement le soir, une fois la journée quasi finie)
+      if (timeCtx === 'soir') {
+        const scoreTasksToday = allTasks.filter(t =>
+          t.recurring || (t.due_date && t.due_date.slice(0, 10) === today)
+        )
+        const pointsPossible = scoreTasksToday.reduce((s, t) => s + (DB_PRIORITY_WEIGHT[t.priority] ?? DB_PRIORITY_WEIGHT.medium), 0)
+        const pointsDone = scoreTasksToday.reduce((s, t) => {
+          const done = t.recurring ? t.last_completed_at === today : t.status === 'done'
+          return s + (done ? (DB_PRIORITY_WEIGHT[t.priority] ?? DB_PRIORITY_WEIGHT.medium) : 0)
+        }, 0)
+        if (pointsPossible > 0) {
+          const scorePct = Math.round((pointsDone / pointsPossible) * 100)
+          lines.push(`📊 Score du jour : ${scorePct}%${scorePct < 100 ? ' — encore le temps de finir' : ' 🎉'}`)
+        }
+      }
 
       if (lines.length === 0) continue
 

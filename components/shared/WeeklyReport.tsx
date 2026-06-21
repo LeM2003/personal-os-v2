@@ -2,6 +2,7 @@
 
 import { useRef, useState } from 'react'
 import { todayISO, fmtDate, daysUntil, todayDay } from '../../utils/dates'
+import { authFetch } from '../../utils/authFetch'
 import type { Task, Expense, Subscription, Project, Homework, Exam, UserProfile, StreakData } from '@/types'
 
 function isoMinusDays(n: number) {
@@ -232,7 +233,7 @@ export default function WeeklyReport({ tasks, expenses, subscriptions, projects,
     ].filter(Boolean).join('\n')
 
     try {
-      const res = await fetch('/api/ai', {
+      const res = await authFetch('/api/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ task: 'weekly_report', messages: [{ role: 'user', content: prompt }] }),

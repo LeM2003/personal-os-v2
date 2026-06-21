@@ -281,17 +281,26 @@ export default function App() {
         {TABS.filter(t => ['dashboard', 'taches', 'projets', 'finances', 'stats'].includes(t.id)).map(t => (
           <button key={t.id} onClick={() => { haptic(3); setTab(t.id); setMobileMore(false) }} aria-label={t.label}
             style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column',
-              alignItems: 'center', gap: 2, padding: '4px 6px', flex: 1,
+              alignItems: 'center', justifyContent: 'center', gap: 2, padding: '4px 6px', flex: 1, minHeight: 44,
               color: tab === t.id ? '#5B8DBF' : 'var(--muted)' }}>
             <span>{t.icon}</span>
             <span style={{ fontSize: 9, fontFamily: 'DM Sans', fontWeight: 500 }}>{t.label.split(' ')[0]}</span>
           </button>
         ))}
-        <button onClick={() => setMobileMore(m => !m)} aria-label="Plus d'options"
+        <button onClick={() => setMobileMore(m => !m)} aria-label="Plus d'options : École, Ajustements, profil, réglages"
           style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column',
-            alignItems: 'center', gap: 2, padding: '4px 6px', flex: 1, position: 'relative',
+            alignItems: 'center', gap: 2, padding: '4px 6px', flex: 1, position: 'relative', minHeight: 44,
+            justifyContent: 'center',
             color: ['ecole', 'ajustements'].includes(tab) ? '#5B8DBF' : 'var(--muted)' }}>
-          <MoreHorizontal size={20} />
+          {/* Pastille visuelle pour que "Plus" se distingue clairement comme un bouton,
+              pas juste trois points décoratifs — les trois points seuls passent inaperçus. */}
+          <span style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            width: 26, height: 26, borderRadius: 8,
+            background: ['ecole', 'ajustements'].includes(tab) ? 'rgba(91,141,191,.15)' : 'rgba(100,116,139,.12)',
+          }}>
+            <MoreHorizontal size={20} strokeWidth={2.25} />
+          </span>
           <span style={{ fontSize: 9, fontFamily: 'DM Sans', fontWeight: 500 }}>Plus</span>
           {adjustments.length > 0 && (
             <span style={{ position: 'absolute', top: 0, right: 2, background: '#f87171', color: '#fff',

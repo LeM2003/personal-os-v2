@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { genId, todayISO } from '../../utils/dates'
+import { authFetch } from '../../utils/authFetch'
 import type { Task, Homework, Exam } from '@/types'
 
 interface ImportResult {
@@ -68,7 +69,7 @@ const parse = async () => {
   setPreview(null)
 
   try {
-    const res = await fetch('/api/ai', {
+    const res = await authFetch('/api/ai', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

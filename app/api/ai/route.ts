@@ -1,20 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Groq from 'groq-sdk'
 import { rateLimit } from '@/utils/rateLimit'
+import { getUserFromBearer } from '@/lib/supabase/token'
 
+// Rate limit par utilisateur authentifié (pas par IP — un user derrière un NAT/4G
+// partagé ne doit pas être bloqué par les requêtes d'un autre).
 const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 100 })
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
 
-function getClientIp(req: NextRequest): string {
-  return req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
-    || req.headers.get('x-real-ip')
-    || 'unknown'
-}
+const VALID_TASKS = new Set(['parse_tasks', 'weekly_report', 'analyze_project', 'analyze'])
+const MAX_MESSAGES = 20
+const MAX_CONTENT_LENGTH = 8000
 
 export async function POST(req: NextRequest) {
-  const ip = getClientIp(req)
-  const { success, remaining } = limiter(ip)
+  // Cet endpoint appelle une API IA payante (Groq) — il doit être réservé aux
+  // utilisateurs connectés, sinon n'importe qui peut consommer le quota/le coût.
+  const { user } = await getUserFromBearer(req.headers.get('authorization'))
+  if (!user) {
+    return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
+  }
+
+  const { success, remaining } = limiter(user.id)
 
   if (!success) {
     return NextResponse.json(
@@ -30,7 +37,31 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { messages, task } = await req.json()
+    const body = await req.json().catch(() => null)
+    if (!body || typeof body !== 'object') {
+      return NextResponse.json({ error: 'Corps de requête invalide' }, { status: 400 })
+    }
+
+    const { messages, task } = body as { messages?: unknown; task?: unknown }
+
+    if (typeof task !== 'string' || !VALID_TASKS.has(task)) {
+      return NextResponse.json({ error: 'task invalide' }, { status: 400 })
+    }
+    if (!Array.isArray(messages) || messages.length === 0 || messages.length > MAX_MESSAGES) {
+      return NextResponse.json({ error: 'messages invalide' }, { status: 400 })
+    }
+    const validRoles = new Set(['user', 'assistant'])
+    for (const m of messages) {
+      if (
+        typeof m !== 'object' || m === null
+        || !validRoles.has((m as Record<string, unknown>).role as string)
+        || typeof (m as Record<string, unknown>).content !== 'string'
+        || ((m as Record<string, unknown>).content as string).length === 0
+        || ((m as Record<string, unknown>).content as string).length > MAX_CONTENT_LENGTH
+      ) {
+        return NextResponse.json({ error: 'messages invalide' }, { status: 400 })
+      }
+    }
 
     if (!process.env.GROQ_API_KEY) {
       return NextResponse.json({ error: 'GROQ_API_KEY non configurée' }, { status: 500 })

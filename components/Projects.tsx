@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useApp } from '../context/AppContext'
 import { genId, todayISO, fmtDate } from '../utils/dates'
 import { safeParse } from '../utils/safeParse'
+import { authFetch } from '../utils/authFetch'
 import PageHeader from './shared/PageHeader'
 import EmptyState from './shared/EmptyState'
 import AbstractMark from './shared/AbstractMark'
@@ -313,7 +314,7 @@ export default function Projets() {
     ].join('\n')
 
     try {
-      const res = await fetch('/api/ai', {
+      const res = await authFetch('/api/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ task: 'analyze_project', messages: [{ role: 'user', content: prompt }] }),

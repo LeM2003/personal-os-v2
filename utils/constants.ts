@@ -1,6 +1,8 @@
 export const PRIORITY_ORDER: Record<string, number> = { Critique: 0, Important: 1, Optionnel: 2 }
 export const PRIORITY_COLOR: Record<string, string> = { Critique: '#f87171', Important: '#5B8DBF', Optionnel: '#9ca3af' }
 export const PRIORITY_EMOJI: Record<string, string> = { Critique: '🔴', Important: '🟡', Optionnel: '⚪' }
+// Points attribués par priorité pour le score de productivité (ratio 4:2:1)
+export const PRIORITY_WEIGHT: Record<string, number> = { Critique: 20, Important: 10, Optionnel: 5 }
 
 export const CAT_COLORS: Record<string, string> = {
   Alimentation: '#f59e0b', Transport: '#3b82f6', Télécom: '#06b6d4',

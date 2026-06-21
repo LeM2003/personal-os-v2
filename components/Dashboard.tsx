@@ -4,7 +4,7 @@ import { useEffect } from 'react'
 import { useApp } from '../context/AppContext'
 import { useLS } from '../hooks/useLocalStorage'
 import { todayISO, todayLabel, todayDay, greeting, fmtDate, daysUntil } from '../utils/dates'
-import { PRIORITY_ORDER, PRIORITY_COLOR, CAT_COLORS } from '../utils/constants'
+import { PRIORITY_ORDER, PRIORITY_COLOR, PRIORITY_WEIGHT, CAT_COLORS } from '../utils/constants'
 import { computeNextRenewal } from '../utils/subscriptions'
 import type { Task, Exam, Homework, Subscription, AlertItem } from '@/types'
 import StatCard from './shared/StatCard'
@@ -113,16 +113,34 @@ export default function Dashboard() {
     ? { label: 'Normale', icon: <Cloud size={28} />, color: '#5B8DBF', sub: `${todayCourses.length + tasksDueToday} élément(s)` }
     : { label: 'Chargée', icon: <CloudLightning size={28} />, color: '#f87171', sub: 'Priorise maintenant' }
 
-  /* ── Score de la semaine (7 derniers jours) ── */
+  /* ── Score pondéré du jour : points des tâches terminées / points possibles ──
+     Une tâche Critique vaut plus de points qu'une Optionnel (barème 20/10/5),
+     donc finir la tâche importante du jour compte plus qu'en cocher 3 mineures. */
+  const weightOf = (t: Task) => PRIORITY_WEIGHT[t.priority ?? 'Important'] ?? PRIORITY_WEIGHT.Important
+  const todayDueTasks = tasks.filter(t => !t.recurring && t.deadline === now)
+  const todayScoreTasks = [...todayDueTasks, ...todayHabits]
+  const todayPointsPossible = todayScoreTasks.reduce((s, t) => s + weightOf(t), 0)
+  const todayPointsDone = todayScoreTasks.reduce((s, t) => {
+    const done = t.recurring ? (t.status === 'Terminé' && t.lastCompletedAt === now) : t.status === 'Terminé'
+    return s + (done ? weightOf(t) : 0)
+  }, 0)
+  const todayScore = todayPointsPossible > 0 ? Math.round((todayPointsDone / todayPointsPossible) * 100) : null
+
+  /* ── Score de la semaine : moyenne des scores journaliers pondérés (7 derniers jours) ──
+     Bucket approximatif par date de création (pas de reconstruction des habitudes passées),
+     les jours sans aucune tâche créée sont exclus pour ne pas punir un jour off légitime. */
   const weekScore = (() => {
-    let created = 0, done = 0
+    let totalPct = 0, daysWithTasks = 0
     for (let i = 0; i < 7; i++) {
       const date = isoMinusDays(i)
-      tasks.forEach(t => {
-        if (t.createdAt === date) { created++; if (t.status === 'Terminé') done++ }
-      })
+      const dayTasks = tasks.filter(t => t.createdAt === date)
+      if (dayTasks.length === 0) continue
+      const possible = dayTasks.reduce((s, t) => s + weightOf(t), 0)
+      const done = dayTasks.reduce((s, t) => s + (t.status === 'Terminé' ? weightOf(t) : 0), 0)
+      totalPct += possible > 0 ? (done / possible) * 100 : 0
+      daysWithTasks++
     }
-    return created > 0 ? Math.round((done / created) * 100) : 0
+    return daysWithTasks > 0 ? Math.round(totalPct / daysWithTasks) : 0
   })()
 
   /* ── Streak : mise à jour au montage si jour productif ── */
@@ -283,14 +301,14 @@ export default function Dashboard() {
             <p style={{ fontSize: 9, color: 'var(--muted)', margin: '2px 0 0', textTransform: 'uppercase', letterSpacing: .5 }}>Streak</p>
           </div>
         </div>
-        {/* Score SVG */}
+        {/* Score SVG — score pondéré du jour (Critique=20/Important=10/Optionnel=5 pts) */}
         <div className="card" style={{ padding: 'clamp(10px,2vw,16px)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, textAlign: 'center' }}>
           <div style={{ position: 'relative', width: 36, height: 36 }}>
             <svg width="36" height="36" viewBox="0 0 36 36">
               <circle cx="18" cy="18" r="14" fill="none" stroke="rgba(56,189,248,.12)" strokeWidth="3" />
               <circle cx="18" cy="18" r="14" fill="none" stroke="url(#sg2)" strokeWidth="3"
                 strokeLinecap="round"
-                strokeDasharray={`${(weekScore / 100) * 88} 88`}
+                strokeDasharray={`${((todayScore ?? 0) / 100) * 88} 88`}
                 transform="rotate(-90 18 18)"
                 style={{ transition: 'stroke-dasharray .8s' }}
               />
@@ -301,13 +319,15 @@ export default function Dashboard() {
                 </linearGradient>
               </defs>
             </svg>
-            <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, color: 'var(--accent-1)' }}><AnimatedCounter value={weekScore} suffix="%" /></span>
+            <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, color: 'var(--accent-1)' }}>
+              {todayScore === null ? '—' : <AnimatedCounter value={todayScore} suffix="%" />}
+            </span>
           </div>
           <div>
             <p style={{ fontSize: 'clamp(11px,2.5vw,14px)', fontWeight: 700, margin: 0, lineHeight: 1.2, background: 'linear-gradient(135deg,var(--accent-1),var(--accent-2))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-              {weekScore >= 70 ? 'Top' : weekScore >= 40 ? 'Bien' : 'Allez'}
+              {todayScore === null ? 'Libre' : todayScore >= 70 ? 'Top' : todayScore >= 40 ? 'Bien' : 'Allez'}
             </p>
-            <p style={{ fontSize: 9, color: 'var(--muted)', margin: '2px 0 0', textTransform: 'uppercase', letterSpacing: .5 }}>Score 7j</p>
+            <p style={{ fontSize: 9, color: 'var(--muted)', margin: '2px 0 0', textTransform: 'uppercase', letterSpacing: .5 }}>Score · 7j {weekScore}%</p>
           </div>
         </div>
       </div>
