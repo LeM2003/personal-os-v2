@@ -7,6 +7,7 @@ import { COURSE_PALETTE } from '../../utils/constants'
 import {
   Pencil, Trash2, Calendar, MapPin, User, Check, Plus
 } from 'lucide-react'
+import { confirmDialog } from '../shared/ConfirmDialog'
 
 const JOURS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi']
 
@@ -94,10 +95,11 @@ export default function EmploiDuTemps() {
     closeForm()
   }
 
-  const clearAll = () => {
+  const clearAll = async () => {
     if (courses.length === 0) return
-    const ok = window.confirm(
-      `Supprimer les ${courses.length} cours de ton emploi du temps ?\n\nCette action est définitive.`
+    const ok = await confirmDialog(
+      `Supprimer les ${courses.length} cours de ton emploi du temps ? Cette action est définitive.`,
+      { danger: true }
     )
     if (!ok) return
     setCourses([])

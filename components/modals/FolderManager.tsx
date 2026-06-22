@@ -4,6 +4,7 @@ import { useState } from 'react'
 import type { Folder } from '@/types'
 import { haptic } from '@/utils/haptics'
 import { X, Plus, Pencil, Trash2, ChevronUp, ChevronDown, Check } from 'lucide-react'
+import { confirmDialog } from '../shared/ConfirmDialog'
 
 // Palette curée — alignée sur les accents du design system (cohérence visuelle).
 const FOLDER_COLORS = ['#38bdf8', '#a78bfa', '#34d399', '#fbbf24', '#fb7185', '#60a5fa', '#f472b6', '#94a3b8']
@@ -63,8 +64,8 @@ export default function FolderManager({ folders, onAdd, onUpdate, onDelete, onMo
     onAdd(newName, newColor, newEmoji.trim() || undefined)
     setNewName(''); setNewEmoji(''); setNewColor(FOLDER_COLORS[0])
   }
-  const confirmDelete = (f: Folder) => {
-    if (typeof window !== 'undefined' && !confirm(`Supprimer le dossier « ${f.name} » ? Les tâches associées passeront « Sans dossier » (elles ne seront pas supprimées).`)) return
+  const confirmDelete = async (f: Folder) => {
+    if (typeof window !== 'undefined' && !(await confirmDialog(`Supprimer le dossier « ${f.name} » ? Les tâches associées passeront « Sans dossier » (elles ne seront pas supprimées).`, { danger: true }))) return
     haptic(8)
     onDelete(f.id)
   }

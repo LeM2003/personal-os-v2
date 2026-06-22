@@ -20,6 +20,7 @@ import {
   Sun, Moon, LogOut, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Settings as SettingsIcon
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { confirmDialog } from './shared/ConfirmDialog'
 
 const LandingPage = lazy(() => import('./LandingPage'))
 const Onboarding  = lazy(() => import('./Onboarding'))
@@ -105,7 +106,7 @@ export default function App() {
 
   const logout = async () => {
     if (typeof window === 'undefined') return
-    if (!confirm('Veux-tu te déconnecter ? Tes données locales restent sauvegardées.')) return
+    if (!(await confirmDialog('Veux-tu te déconnecter ? Tes données locales restent sauvegardées.'))) return
     try {
       const supabase = createClient()
       await supabase.auth.signOut()

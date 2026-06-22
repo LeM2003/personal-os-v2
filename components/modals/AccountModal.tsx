@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { X, Mail, Lock, Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { haptic } from '@/utils/haptics'
+import { confirmDialog } from '../shared/ConfirmDialog'
 
 export default function AccountModal({ onClose, onLoggedOut }: { onClose: () => void; onLoggedOut: () => void }) {
   const [email, setEmail] = useState('')
@@ -37,8 +38,8 @@ export default function AccountModal({ onClose, onLoggedOut }: { onClose: () => 
 
   const deleteAccount = async () => {
     if (typeof window !== 'undefined' &&
-      !confirm('⚠️ Supprimer DÉFINITIVEMENT ton compte et toutes tes données ? Cette action est irréversible.')) return
-    if (!confirm('Dernière confirmation : tout sera effacé pour toujours. Continuer ?')) return
+      !(await confirmDialog('⚠️ Supprimer DÉFINITIVEMENT ton compte et toutes tes données ? Cette action est irréversible.', { danger: true }))) return
+    if (!(await confirmDialog('Dernière confirmation : tout sera effacé pour toujours. Continuer ?', { danger: true }))) return
     haptic(8); setBusy(true); setErr('')
     try {
       const { data: { session } } = await createClient().auth.getSession()

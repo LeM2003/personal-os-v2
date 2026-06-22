@@ -6,6 +6,7 @@ import { genId, todayISO } from '../../utils/dates'
 import { haptic, hapticSuccess } from '../../utils/haptics'
 import type { Grade, Subject } from '@/types'
 import BottomSheet from '../shared/BottomSheet'
+import { confirmDialog } from '../shared/ConfirmDialog'
 
 const TYPES = ['Contrôle', 'DS', 'Oral']
 
@@ -143,12 +144,12 @@ export default function Notes() {
       short: ((patch.short ?? s.short) || '').slice(0, 3),
     } : s))
   }
-  const deleteSubject = (id: string) => {
+  const deleteSubject = async (id: string) => {
     const affected = notes.filter(n => n.subjectId === id).length
     const msg = affected > 0
       ? `Supprimer cette matière ? Les ${affected} note${affected > 1 ? 's' : ''} associée${affected > 1 ? 's' : ''} seront aussi effacée${affected > 1 ? 's' : ''}.`
       : 'Supprimer cette matière ?'
-    if (!window.confirm(msg)) return
+    if (!(await confirmDialog(msg, { danger: true }))) return
     setSubjects(p => p.filter(s => s.id !== id))
     setNotes(p => p.filter(n => n.subjectId !== id))
     haptic(8)

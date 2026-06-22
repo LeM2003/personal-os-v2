@@ -13,6 +13,7 @@ import FolderManager from './modals/FolderManager'
 import DayView from './DayView'
 import { haptic, hapticSuccess } from '../utils/haptics'
 import type { Task, TaskStatus, Subtask, Homework, Exam, Folder as TFolder } from '@/types'
+import { confirmDialog } from './shared/ConfirmDialog'
 import {
   Pencil, X, CheckSquare, Repeat, Clock, Moon, RefreshCw,
   Folder, Calendar, AlertTriangle, Shuffle, Play,
@@ -551,8 +552,8 @@ export default function Taches() {
             <button className="btn-ghost" onClick={closeForm}>Annuler</button>
             {editingId && (
               <button className="btn-ghost" style={{ marginLeft: 'auto', color: '#f87171', borderColor: 'rgba(248,113,113,.35)' }}
-                onClick={() => {
-                  if (!confirm('Supprimer cette tâche ?')) return
+                onClick={async () => {
+                  if (!(await confirmDialog('Supprimer cette tâche ?', { danger: true }))) return
                   del(editingId)
                   closeForm()
                 }}>

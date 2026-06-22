@@ -10,6 +10,8 @@ import {
 import FeedbackModal from './modals/FeedbackModal'
 import AccountModal from './modals/AccountModal'
 import { createClient } from '@/lib/supabase/client'
+import { confirmDialog } from './shared/ConfirmDialog'
+import { toast } from './shared/Toast'
 
 // 👇 Remplis ces deux champs quand tu as les comptes
 const WAVE_NUMBER  : string = '+221783019983'
@@ -160,8 +162,8 @@ export default function Settings() {
     fetchFeedbacks()
   }, [])
 
-  const resetAppearance = () => {
-    if (typeof window !== 'undefined' && !confirm('Réinitialiser l\'apparence (thème, accent, taille, animations) ?')) return
+  const resetAppearance = async () => {
+    if (typeof window !== 'undefined' && !(await confirmDialog('Réinitialiser l\'apparence (thème, accent, taille, animations) ?'))) return
     haptic(8)
     setTheme('dark'); setAccent('cyan'); setFontScale('md'); setReduceMotionPref(false)
   }
@@ -342,8 +344,8 @@ export default function Settings() {
                     onClick={() => {
                       haptic(3)
                       navigator.clipboard.writeText(WAVE_NUMBER)
-                        .then(() => alert('Numéro copié ! Ouvre Wave et envoie à ce numéro.'))
-                        .catch(() => alert('Numéro : ' + WAVE_NUMBER))
+                        .then(() => toast('Numéro copié ! Ouvre Wave et envoie à ce numéro.', 'success'))
+                        .catch(() => toast('Numéro : ' + WAVE_NUMBER, 'info'))
                     }}>
                     Copier
                   </button>

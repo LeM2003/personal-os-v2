@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "test": "node tests/e2e-smoke.mjs",
+    "test:e2e": "node tests/e2e-smoke.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.3",

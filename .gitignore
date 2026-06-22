@@ -43,5 +43,10 @@ next-env.d.ts
 # Android signing & build artifacts (NE JAMAIS committer)
 *.keystore
 *.apk
+*.apk.idsig
 *.aab
-Personal OS*package/
+Personal OS*package*
+PersonalOS*.txt
+
+# supabase local
+supabase/.temp/

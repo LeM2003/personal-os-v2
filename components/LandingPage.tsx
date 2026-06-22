@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import InstallPrompt from './shared/InstallPrompt'
 import { createClient } from '@/lib/supabase/client'
+import { toast } from './shared/Toast'
 
 const PROBLEMS = [
   { icon: '📱', text: 'Tes notes dans WhatsApp. Tes deadlines dans ta tête. Ton budget, nulle part.' },
@@ -75,7 +76,7 @@ export default function LandingPage({ onStart }: { onStart: (profile: UserProfil
       // Confirmation email requise → on prévient l'utilisateur
       if (!data.session) {
         setAuthError(''); setAuthLoading(false)
-        alert('🎉 Compte créé ! Vérifie ton email pour confirmer, puis connecte-toi.')
+        toast('🎉 Compte créé ! Vérifie ton email pour confirmer, puis connecte-toi.', 'success')
         setAuthMode('signin'); return
       }
       onStart({ prenom: form.prenom.trim(), nom: form.nom.trim() || undefined, mode: ROLE_TO_MODE[form.role] || 'les-deux' })
@@ -101,7 +102,7 @@ export default function LandingPage({ onStart }: { onStart: (profile: UserProfil
     })
     setAuthLoading(false)
     if (error) { setAuthError(error.message); return }
-    alert('📧 Email envoyé ! Vérifie ta boîte (et les spams) pour réinitialiser ton mot de passe.')
+    toast('📧 Email envoyé ! Vérifie ta boîte (et les spams) pour réinitialiser ton mot de passe.', 'success')
   }
 
   useEffect(() => {

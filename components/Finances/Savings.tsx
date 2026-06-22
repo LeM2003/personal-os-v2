@@ -7,6 +7,7 @@ import { genId, todayISO, fmtDate } from '../../utils/dates'
 import { haptic, hapticSuccess } from '../../utils/haptics'
 import StatCard from '../shared/StatCard'
 import EmptyState from '../shared/EmptyState'
+import { confirmDialog } from '../shared/ConfirmDialog'
 
 const COLORS = ['#5B8DBF', '#4ade80', '#a78bfa', '#fb923c', '#f472b6', '#22d3ee']
 const blank = { name: '', goal: '', current: '', color: COLORS[0], note: '' }
@@ -33,8 +34,8 @@ export default function Epargne() {
     hapticSuccess()
   }
 
-  const del = (id: string) => {
-    if (!confirm('Supprimer ce pot ? Tout l\'historique sera perdu.')) return
+  const del = async (id: string) => {
+    if (!(await confirmDialog('Supprimer ce pot ? Tout l\'historique sera perdu.', { danger: true }))) return
     haptic(8)
     setSavings(p => p.filter(s => s.id !== id))
   }

@@ -4,6 +4,8 @@ import { DM_Sans, Fraunces } from 'next/font/google'
 import SwRegister from '@/components/shared/SwRegister'
 import UpdateBanner from '@/components/shared/UpdateBanner'
 import WhatsNew from '@/components/shared/WhatsNew'
+import ToastHost from '@/components/shared/Toast'
+import ConfirmHost from '@/components/shared/ConfirmDialog'
 import './globals.css'
 
 const dmSans = DM_Sans({
@@ -59,6 +61,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <UpdateBanner />
         <WhatsNew />
         {children}
+        <ToastHost />
+        <ConfirmHost />
         <Analytics />
       </body>
     </html>

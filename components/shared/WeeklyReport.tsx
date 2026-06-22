@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react'
 import { todayISO, fmtDate, daysUntil, todayDay } from '../../utils/dates'
 import { authFetch } from '../../utils/authFetch'
+import { toast } from './Toast'
 import type { Task, Expense, Subscription, Project, Homework, Exam, UserProfile, StreakData } from '@/types'
 
 function isoMinusDays(n: number) {
@@ -212,7 +213,7 @@ export default function WeeklyReport({ tasks, expenses, subscriptions, projects,
     } catch (e) {
       if ((e as Error)?.name !== 'AbortError') {
         console.error('Export error:', e)
-        alert('Partage non disponible sur ce navigateur.')
+        toast('Partage non disponible sur ce navigateur.', 'error')
       }
     } finally {
       setExporting(false)
