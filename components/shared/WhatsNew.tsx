@@ -5,6 +5,14 @@ import { CHANGELOG, LATEST_VERSION } from '@/utils/changelog'
 
 const STORAGE_KEY = 'pos_seen_changelog'
 
+// ── Ouverture manuelle (depuis Réglages → « Quoi de neuf ») ──
+// Même pattern emit/listener que Toast : permet de rouvrir le panneau à tout
+// moment, indépendamment de la version déjà vue.
+let openListeners: Array<() => void> = []
+export function openWhatsNew() {
+  openListeners.forEach(l => l())
+}
+
 // Affiche les nouveautés aux utilisateurs qui rouvrent l'app après une mise à
 // jour — contrairement à UpdateBanner (qui dit juste "il y a une nouvelle
 // version", sans détail), ici on dit concrètement ce qui a changé.
@@ -24,6 +32,13 @@ export default function WhatsNew() {
       return
     }
     if (seen !== LATEST_VERSION) setShow(true)
+  }, [])
+
+  // Abonnement à l'ouverture manuelle depuis les Réglages
+  useEffect(() => {
+    const open = () => setShow(true)
+    openListeners.push(open)
+    return () => { openListeners = openListeners.filter(l => l !== open) }
   }, [])
 
   const dismiss = () => {

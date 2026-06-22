@@ -12,6 +12,7 @@ import AccountModal from './modals/AccountModal'
 import { createClient } from '@/lib/supabase/client'
 import { confirmDialog } from './shared/ConfirmDialog'
 import { toast } from './shared/Toast'
+import { openWhatsNew } from './shared/WhatsNew'
 
 // 👇 Remplis ces deux champs quand tu as les comptes
 const WAVE_NUMBER  : string = '+221783019983'
@@ -319,6 +320,12 @@ export default function Settings() {
 
       {/* ── Soutenir & Contact ── */}
       <Section title="Soutenir & Contact" sub="Cet app est un projet indépendant. Chaque retour et chaque soutien compte.">
+        <Row label="Quoi de neuf" hint="Les dernières nouveautés ajoutées à l'app.">
+          <button className="btn-ghost" onClick={() => { haptic(3); openWhatsNew() }}
+            style={{ fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <Sparkles size={13} /> Voir
+          </button>
+        </Row>
         <Row label="Donner mon avis" hint="Bug, idée, compliment — je lis tout.">
           <button className="btn-ghost" onClick={() => { haptic(3); setFeedbackOpen(true) }}
             style={{ fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 6 }}>

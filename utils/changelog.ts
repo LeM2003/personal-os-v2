@@ -8,6 +8,14 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2026-06-22',
+    date: '22 juin 2026',
+    items: [
+      'Confirmations et notifications repensées : fini les pop-ups du navigateur, place à des messages intégrés et plus clairs',
+      'Panneau « Quoi de neuf » accessible à tout moment depuis les Réglages',
+    ],
+  },
+  {
     version: '2026-06-21',
     date: '21 juin 2026',
     items: [
