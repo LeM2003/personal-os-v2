@@ -50,3 +50,6 @@ PersonalOS*.txt
 
 # supabase local
 supabase/.temp/
+
+# Sentry
+.env.sentry-build-plugin
