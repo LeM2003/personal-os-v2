@@ -3,7 +3,7 @@
  * Centralisé ici pour que les changements de schéma n'impactent qu'un seul fichier.
  */
 
-import type { Task, Folder, Expense, Project } from '@/types'
+import type { Task, Folder, Expense, Project, Homework, Exam } from '@/types'
 
 // ── Status ──────────────────────────────────────────────────────────────────
 const STATUS_TO_DB: Record<string, string> = {
@@ -188,5 +188,83 @@ export function rowToProject(row: Record<string, any>): Project {
     tags: (meta.tags as string[]) || [],
     aiAnalysis: (meta.aiAnalysis as string) || null,
     createdAt: (row.created_at as string) || undefined,
+  }
+}
+
+// ── Homework (devoirs) ────────────────────────────────────────────────────────
+
+const HOMEWORK_STATUS_TO_DB: Record<string, string> = {
+  'À faire': 'todo', 'En cours': 'doing', 'Rendu': 'submitted',
+}
+const HOMEWORK_STATUS_FROM_DB: Record<string, string> = {
+  todo: 'À faire', doing: 'En cours', submitted: 'Rendu', graded: 'Rendu', cancelled: 'À faire',
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function homeworkToRow(hw: Homework, userId: string): Record<string, any> {
+  const subject = (hw.matiere || '').trim().slice(0, 100) || 'Général'
+  const title = (hw.description || '').trim().slice(0, 300) || subject
+  return {
+    id: hw.id,
+    user_id: userId,
+    subject,
+    title,
+    description: hw.description || null,
+    due_date: hw.dateRendu ? `${hw.dateRendu}T00:00:00Z` : new Date().toISOString(),
+    status: HOMEWORK_STATUS_TO_DB[hw.statut] ?? 'todo',
+    metadata: { statutOriginal: hw.statut, priorite: hw.priorite || null },
+  }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function rowToHomework(row: Record<string, any>): Homework {
+  const meta = (row.metadata ?? {}) as Record<string, unknown>
+  return {
+    id: row.id as string,
+    matiere: row.subject as string,
+    description: (row.description as string) || undefined,
+    dateRendu: row.due_date ? (row.due_date as string).slice(0, 10) : '',
+    statut: (meta.statutOriginal as string) || HOMEWORK_STATUS_FROM_DB[row.status as string] || 'À faire',
+    priorite: (meta.priorite as Homework['priorite']) || undefined,
+  }
+}
+
+// ── Exam (exams) ───────────────────────────────────────────────────────────────
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function examToRow(exam: Exam, userId: string): Record<string, any> {
+  const subject = (exam.matiere || '').trim().slice(0, 100) || 'Général'
+  const datePart = exam.date || new Date().toISOString().slice(0, 10)
+  const heurePart = exam.heure || '08:00'
+  return {
+    id: exam.id,
+    user_id: userId,
+    subject,
+    exam_date: `${datePart}T${heurePart}:00Z`,
+    location: exam.salle || null,
+    notes: exam.notes || null,
+    metadata: {
+      heure: exam.heure || null,
+      chapitres: exam.chapitres || null,
+      totalChapitres: exam.totalChapitres ?? null,
+      chapitresRevises: exam.chapitresRevises ?? null,
+    },
+  }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function rowToExam(row: Record<string, any>): Exam {
+  const meta = (row.metadata ?? {}) as Record<string, unknown>
+  const examDate = (row.exam_date as string) || ''
+  return {
+    id: row.id as string,
+    matiere: row.subject as string,
+    date: examDate.slice(0, 10),
+    heure: (meta.heure as string) || examDate.slice(11, 16) || '08:00',
+    salle: (row.location as string) || undefined,
+    notes: (row.notes as string) || undefined,
+    chapitres: (meta.chapitres as string) || undefined,
+    totalChapitres: (meta.totalChapitres as number) ?? undefined,
+    chapitresRevises: (meta.chapitresRevises as number) ?? undefined,
   }
 }

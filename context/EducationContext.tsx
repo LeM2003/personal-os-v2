@@ -3,6 +3,8 @@
 import { createContext, useContext } from 'react'
 import type { Course, Homework, Exam, Grade, Subject } from '@/types'
 import { useLS } from '@/hooks/useLocalStorage'
+import { useSyncedCollection } from '@/hooks/useSyncedCollection'
+import { homeworkToRow, rowToHomework, examToRow, rowToExam } from '@/lib/supabase/mappers'
 
 interface EducationContextValue {
   courses: Course[]
@@ -21,8 +23,16 @@ const EducationContext = createContext<EducationContextValue | null>(null)
 
 export function EducationProvider({ children }: { children: React.ReactNode }) {
   const [courses,  setCourses]  = useLS<Course[]>('pos_courses',   [])
-  const [devoirs,  setDevoirs]  = useLS<Homework[]>('pos_devoirs',  [])
-  const [examens,  setExamens]  = useLS<Exam[]>('pos_examens',     [])
+  // devoirs + examens : tables Supabase déjà existantes (schéma 0001) → sync cloud.
+  // notes/subjects : pas encore de table dédiée, restent en local (Phase D, voir migration proposée).
+  const [devoirs,  setDevoirs]  = useSyncedCollection<Homework>({
+    storageKey: 'pos_devoirs', table: 'devoirs', toRow: homeworkToRow, fromRow: rowToHomework,
+    getId: h => h.id, defaultValue: [], orderBy: { column: 'due_date' },
+  })
+  const [examens,  setExamens]  = useSyncedCollection<Exam>({
+    storageKey: 'pos_examens', table: 'exams', toRow: examToRow, fromRow: rowToExam,
+    getId: e => e.id, defaultValue: [], orderBy: { column: 'exam_date' },
+  })
   const [notes,    setNotes]    = useLS<Grade[]>('pos_notes',      [])
   const [subjects, setSubjects] = useLS<Subject[]>('pos_subjects', [])
 
