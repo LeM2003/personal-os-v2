@@ -2,9 +2,11 @@
 
 import { createContext, useContext } from 'react'
 import type { Course, Homework, Exam, Grade, Subject } from '@/types'
-import { useLS } from '@/hooks/useLocalStorage'
 import { useSyncedCollection } from '@/hooks/useSyncedCollection'
-import { homeworkToRow, rowToHomework, examToRow, rowToExam } from '@/lib/supabase/mappers'
+import {
+  homeworkToRow, rowToHomework, examToRow, rowToExam,
+  subjectToRow, rowToSubject, courseToRow, rowToCourse, gradeToRow, rowToGrade,
+} from '@/lib/supabase/mappers'
 
 interface EducationContextValue {
   courses: Course[]
@@ -22,9 +24,7 @@ interface EducationContextValue {
 const EducationContext = createContext<EducationContextValue | null>(null)
 
 export function EducationProvider({ children }: { children: React.ReactNode }) {
-  const [courses,  setCourses]  = useLS<Course[]>('pos_courses',   [])
-  // devoirs + examens : tables Supabase déjà existantes (schéma 0001) → sync cloud.
-  // notes/subjects : pas encore de table dédiée, restent en local (Phase D, voir migration proposée).
+  // Toutes les collections École synchronisées cloud (migrations 0001 + 0007).
   const [devoirs,  setDevoirs]  = useSyncedCollection<Homework>({
     storageKey: 'pos_devoirs', table: 'devoirs', toRow: homeworkToRow, fromRow: rowToHomework,
     getId: h => h.id, defaultValue: [], orderBy: { column: 'due_date' },
@@ -33,8 +33,21 @@ export function EducationProvider({ children }: { children: React.ReactNode }) {
     storageKey: 'pos_examens', table: 'exams', toRow: examToRow, fromRow: rowToExam,
     getId: e => e.id, defaultValue: [], orderBy: { column: 'exam_date' },
   })
-  const [notes,    setNotes]    = useLS<Grade[]>('pos_notes',      [])
-  const [subjects, setSubjects] = useLS<Subject[]>('pos_subjects', [])
+  const [courses,  setCourses]  = useSyncedCollection<Course>({
+    storageKey: 'pos_courses', table: 'courses', toRow: courseToRow, fromRow: rowToCourse,
+    getId: c => c.id, defaultValue: [],
+  })
+  const [subjects, setSubjects] = useSyncedCollection<Subject>({
+    storageKey: 'pos_subjects', table: 'subjects', toRow: subjectToRow, fromRow: rowToSubject,
+    getId: s => s.id, defaultValue: [], orderBy: { column: 'position' },
+  })
+  // Debounce plus long que subjects (défaut 2500ms) : les notes référencent une
+  // matière (FK NOT NULL) — pousser après laisse le temps à la matière d'exister
+  // côté serveur en usage normal (voir commentaire détaillé dans mappers.ts).
+  const [notes,    setNotes]    = useSyncedCollection<Grade>({
+    storageKey: 'pos_notes', table: 'grades', toRow: gradeToRow, fromRow: rowToGrade,
+    getId: n => n.id, defaultValue: [], debounceMs: 4000,
+  })
 
   return (
     <EducationContext.Provider value={{ courses, setCourses, devoirs, setDevoirs, examens, setExamens, notes, setNotes, subjects, setSubjects }}>

@@ -3,7 +3,7 @@
  * Centralisé ici pour que les changements de schéma n'impactent qu'un seul fichier.
  */
 
-import type { Task, Folder, Expense, Project, Homework, Exam } from '@/types'
+import type { Task, Folder, Expense, Project, Homework, Exam, Subject, Course, Grade, CourseDay } from '@/types'
 
 // ── Status ──────────────────────────────────────────────────────────────────
 const STATUS_TO_DB: Record<string, string> = {
@@ -266,5 +266,112 @@ export function rowToExam(row: Record<string, any>): Exam {
     chapitres: (meta.chapitres as string) || undefined,
     totalChapitres: (meta.totalChapitres as number) ?? undefined,
     chapitresRevises: (meta.chapitresRevises as number) ?? undefined,
+  }
+}
+
+// ── Subject (subjects) ──────────────────────────────────────────────────────
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function subjectToRow(s: Subject, userId: string): Record<string, any> {
+  return {
+    id: s.id,
+    user_id: userId,
+    name: (s.name || '').trim().slice(0, 100) || 'Matière',
+    short: s.short || null,
+    coef: s.coef && s.coef > 0 ? s.coef : 1,
+    color: s.color || null,
+  }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function rowToSubject(row: Record<string, any>): Subject {
+  return {
+    id: row.id as string,
+    name: row.name as string,
+    short: (row.short as string) || undefined,
+    coef: (row.coef as number) ?? 1,
+    color: (row.color as string) || undefined,
+  }
+}
+
+// ── Course (courses) ────────────────────────────────────────────────────────
+
+const VALID_DAYS: CourseDay[] = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi']
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function courseToRow(c: Course, userId: string): Record<string, any> {
+  return {
+    id: c.id,
+    user_id: userId,
+    name: (c.nom || '').trim().slice(0, 200) || 'Cours',
+    day_of_week: VALID_DAYS.includes(c.jour as CourseDay) ? c.jour : 'Lundi',
+    start_time: c.heureDebut || '08:00',
+    end_time: c.heureFin || null,
+    room: c.salle || null,
+    teacher: c.professeur || null,
+    color: c.color || null,
+    start_date: c.dateDebut || null,
+    end_date: c.dateFin || null,
+    attended_dates: c.attended ?? [],
+  }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function rowToCourse(row: Record<string, any>): Course {
+  return {
+    id: row.id as string,
+    nom: row.name as string,
+    jour: row.day_of_week as CourseDay,
+    heureDebut: row.start_time as string,
+    heureFin: (row.end_time as string) || undefined,
+    salle: (row.room as string) || undefined,
+    professeur: (row.teacher as string) || undefined,
+    color: (row.color as string) || undefined,
+    dateDebut: (row.start_date as string) || null,
+    dateFin: (row.end_date as string) || null,
+    attended: (row.attended_dates as string[]) ?? [],
+  }
+}
+
+// ── Grade (grades) ───────────────────────────────────────────────────────────
+//
+// ⚠️ grades.subject_id est NOT NULL avec FK vers subjects(id) — risque de race
+// si une matière et une note sont créées dans la même fenêtre de sync (la note
+// pousse avant que la matière n'existe côté serveur → échec FK). Mitigé en
+// donnant aux notes un debounce plus long que les matières (voir EducationContext)
+// pour que la matière atterrisse en base avant la note dans l'usage normal.
+// Pas une garantie absolue (cas extrême hors-ligne), mais cohérent avec le
+// reste du moteur de sync (offline-safe = échec silencieux + retry au prochain
+// changement local).
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function gradeToRow(g: Grade, userId: string): Record<string, any> {
+  return {
+    id: g.id,
+    user_id: userId,
+    subject_id: g.subjectId,
+    grade: g.grade,
+    coef: g.coef && g.coef > 0 ? g.coef : 1,
+    type: g.type || 'Contrôle',
+    title: g.title || g.label || null,
+    graded_at: g.date || null,
+    metadata: { matiere: g.matiere || null, note: g.note ?? null, label: g.label || null },
+  }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function rowToGrade(row: Record<string, any>): Grade {
+  const meta = (row.metadata ?? {}) as Record<string, unknown>
+  return {
+    id: row.id as string,
+    subjectId: row.subject_id as string,
+    grade: row.grade as number,
+    coef: (row.coef as number) ?? 1,
+    type: (row.type as string) || undefined,
+    title: (row.title as string) || undefined,
+    date: (row.graded_at as string) || undefined,
+    matiere: (meta.matiere as string) || undefined,
+    note: (meta.note as number) ?? undefined,
+    label: (meta.label as string) || undefined,
   }
 }
