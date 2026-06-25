@@ -5,6 +5,11 @@
 
 import type { Task, Folder, Expense, Project, Homework, Exam, Subject, Course, Grade, CourseDay } from '@/types'
 
+const dateOnly = (value?: string | null): string | undefined => {
+  if (!value) return undefined
+  return value.slice(0, 10)
+}
+
 // ── Status ──────────────────────────────────────────────────────────────────
 const STATUS_TO_DB: Record<string, string> = {
   'À faire': 'todo', 'En cours': 'doing', 'Terminé': 'done',
@@ -64,20 +69,20 @@ export function rowToTask(row: Record<string, any>): Task {
     details: (row.description as string) || undefined,
     status: STATUS_FROM_DB[row.status as string] ?? 'À faire',
     priority: PRIORITY_FROM_DB[row.priority as string] ?? 'Important',
-    deadline: row.due_date ? (row.due_date as string).slice(0, 10) : undefined,
+    deadline: dateOnly(row.due_date as string | null),
     duration: (row.duration_min as number) || undefined,
     taskTime: (row.task_time as string) || undefined,
     recurring: (row.recurring as boolean) ?? false,
     recurrence: (row.recurrence as string) || undefined,
     recurrenceDays: (row.recurrence_days as string[]) ?? [],
     recurrenceTime: (row.recurrence_time as string) || undefined,
-    lastCompletedAt: (row.last_completed_at as string | null) ?? null,
+    lastCompletedAt: dateOnly(row.last_completed_at as string | null) ?? null,
     flexible: (row.flexible as boolean) ?? false,
     subtasks: row.subtasks ?? [],
     folderId: (row.folder_id as string) || undefined,
     linkedDevoirId: (row.linked_devoir_id as string) || (meta.linkedDevoirId as string) || undefined,
     project: (meta.project as string) || undefined,
-    createdAt: (row.created_at as string) || undefined,
+    createdAt: dateOnly(row.created_at as string | null),
   }
 }
 
@@ -103,7 +108,7 @@ export function rowToFolder(row: Record<string, any>): Folder {
     color: row.color as string,
     emoji: (row.emoji as string) || undefined,
     order: (row.position as number) ?? 0,
-    createdAt: (row.created_at as string) || undefined,
+    createdAt: dateOnly(row.created_at as string | null),
   }
 }
 
@@ -135,7 +140,7 @@ export function rowToExpense(row: Record<string, any>): Expense {
     id: row.id as string,
     label: (row.description as string) || undefined,
     amount: row.amount as number,
-    date: row.occurred_at ? (row.occurred_at as string).slice(0, 10) : '',
+    date: dateOnly(row.occurred_at as string | null) ?? '',
     category: (row.category as string) || undefined,
     type: (meta.type as string) || undefined,
     note: (meta.note as string) || undefined,
@@ -187,7 +192,7 @@ export function rowToProject(row: Record<string, any>): Project {
     steps: (meta.steps as Project['steps']) || [],
     tags: (meta.tags as string[]) || [],
     aiAnalysis: (meta.aiAnalysis as string) || null,
-    createdAt: (row.created_at as string) || undefined,
+    createdAt: dateOnly(row.created_at as string | null),
   }
 }
 

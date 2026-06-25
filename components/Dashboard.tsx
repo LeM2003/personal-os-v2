@@ -29,6 +29,8 @@ function isoMinusDays(n: number): string {
   return d.toISOString().split('T')[0]
 }
 
+const dateOnly = (value?: string | null): string => value?.slice(0, 10) ?? ''
+
 export default function Dashboard() {
   const { tasks, objectif, setObjectif, expenses, subscriptions,
   devoirs, examens, adjustments, courses, setTab, profile, streakData, setStreakData,
@@ -42,8 +44,6 @@ export default function Dashboard() {
   const tomorrow     = tomorrowDate.toISOString().split('T')[0]
   const tomorrowDay  = JOURS_FR_LIST[tomorrowDate.getDay()]
 
-  const createdToday   = tasks.filter(t => t.createdAt === now)
-  const completedToday = createdToday.filter(t => t.status === 'Terminé').length
   const todayExpTotal  = expenses.filter(e => e.date === now).reduce((s, e) => s + e.amount, 0)
   const monthKey = now.slice(0, 7) // YYYY-MM
   const monthExpTotal = expenses.filter(e => (e.date || '').startsWith(monthKey)).reduce((s, e) => s + e.amount, 0)
@@ -60,8 +60,22 @@ export default function Dashboard() {
     if (t.recurrence === 'monthly') return t.deadline === now
     return false
   }).sort((a, b) => (a.recurrenceTime || '').localeCompare(b.recurrenceTime || ''))
-  const habitsCompleted = todayHabits.filter(t => t.status === 'Terminé' && t.lastCompletedAt === now).length
+  const isHabitDoneToday = (t: Task) => t.status === 'Terminé' && dateOnly(t.lastCompletedAt) === now
+  const habitsCompleted = todayHabits.filter(isHabitDoneToday).length
   const habitsPct       = todayHabits.length > 0 ? Math.round((habitsCompleted / todayHabits.length) * 100) : 0
+  const todayHabitIds = new Set(todayHabits.map(t => t.id))
+
+  const isTaskScheduledToday = (t: Task) => {
+    if (t.recurring) return todayHabitIds.has(t.id)
+    if (t.deadline) return t.deadline === now
+    return dateOnly(t.createdAt) === now
+  }
+  const isTaskDoneToday = (t: Task) => {
+    if (t.recurring) return isHabitDoneToday(t)
+    return t.status === 'Terminé' && isTaskScheduledToday(t)
+  }
+  const scheduledToday = tasks.filter(isTaskScheduledToday)
+  const completedToday = scheduledToday.filter(isTaskDoneToday).length
 
   const top3 = [...tasks].filter(t => t.status !== 'Terminé').sort((a, b) => (PRIORITY_ORDER[a.priority ?? ''] ?? 99) - (PRIORITY_ORDER[b.priority ?? ''] ?? 99)).slice(0, 3)
   // Focus du jour : la tâche unique à mettre en avant (non-habitude, non-terminée,
@@ -102,7 +116,7 @@ export default function Dashboard() {
     .sort((a, b) => new Date(a._next).getTime() - new Date(b._next).getTime())
 
   /* ── Météo de la journée ── */
-  const tasksDueToday   = tasks.filter(t => t.deadline === now && t.status !== 'Terminé' && !t.recurring).length
+  const tasksDueToday   = scheduledToday.filter(t => t.status !== 'Terminé' && !t.recurring).length
   const devoirsUrgCount = devoirs.filter(d => { const j = daysUntil(d.dateRendu); return d.statut !== 'Rendu' && j >= 0 && j <= 1 }).length
   const chargeScore     = todayCourses.length + tasksDueToday + devoirsUrgCount * 2
   const meteo = chargeScore === 0
@@ -117,23 +131,23 @@ export default function Dashboard() {
      Une tâche Critique vaut plus de points qu'une Optionnel (barème 20/10/5),
      donc finir la tâche importante du jour compte plus qu'en cocher 3 mineures. */
   const weightOf = (t: Task) => PRIORITY_WEIGHT[t.priority ?? 'Important'] ?? PRIORITY_WEIGHT.Important
-  const todayDueTasks = tasks.filter(t => !t.recurring && t.deadline === now)
+  const todayDueTasks = scheduledToday.filter(t => !t.recurring)
   const todayScoreTasks = [...todayDueTasks, ...todayHabits]
   const todayPointsPossible = todayScoreTasks.reduce((s, t) => s + weightOf(t), 0)
   const todayPointsDone = todayScoreTasks.reduce((s, t) => {
-    const done = t.recurring ? (t.status === 'Terminé' && t.lastCompletedAt === now) : t.status === 'Terminé'
+    const done = isTaskDoneToday(t)
     return s + (done ? weightOf(t) : 0)
   }, 0)
   const todayScore = todayPointsPossible > 0 ? Math.round((todayPointsDone / todayPointsPossible) * 100) : null
 
   /* ── Score de la semaine : moyenne des scores journaliers pondérés (7 derniers jours) ──
-     Bucket approximatif par date de création (pas de reconstruction des habitudes passées),
-     les jours sans aucune tâche créée sont exclus pour ne pas punir un jour off légitime. */
+     Bucket approximatif par date prévue (deadline, puis création si pas de deadline),
+     les jours sans aucune tâche sont exclus pour ne pas punir un jour off légitime. */
   const weekScore = (() => {
     let totalPct = 0, daysWithTasks = 0
     for (let i = 0; i < 7; i++) {
       const date = isoMinusDays(i)
-      const dayTasks = tasks.filter(t => t.createdAt === date)
+      const dayTasks = tasks.filter(t => !t.recurring && (t.deadline === date || (!t.deadline && dateOnly(t.createdAt) === date)))
       if (dayTasks.length === 0) continue
       const possible = dayTasks.reduce((s, t) => s + weightOf(t), 0)
       const done = dayTasks.reduce((s, t) => s + (t.status === 'Terminé' ? weightOf(t) : 0), 0)
@@ -153,7 +167,7 @@ export default function Dashboard() {
     const yesterday = d.toISOString().split('T')[0]
     const consecutive = streakData?.lastDate === yesterday
     setStreakData({ count: consecutive ? (streakData.count || 0) + 1 : 1, lastDate: today })
-  }, [completedToday, habitsCompleted]) // eslint-disable-line
+  }, [completedToday, habitsCompleted, streakData, setStreakData])
 
   const streak = streakData?.count || 0
 
@@ -348,7 +362,7 @@ export default function Dashboard() {
 
       {/* ── KPI Cards ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 24 }} className="grid-kpi">
-        <StatCard icon={<ClipboardList size={24} color="#5B8DBF" />} value={<AnimatedCounter value={createdToday.length} />} label="Tâches du jour" color="#5B8DBF" />
+        <StatCard icon={<ClipboardList size={24} color="#5B8DBF" />} value={<AnimatedCounter value={scheduledToday.length} />} label="Tâches du jour" color="#5B8DBF" />
         <StatCard icon={<CheckCircle2 size={24} color="#4ade80" />} value={<AnimatedCounter value={completedToday} />} label="Terminées" color="#4ade80" />
         <StatCard icon={<Receipt size={24} color="#60a5fa" />} value={<AnimatedCounter value={todayExpTotal} suffix=" F" />} label="Dépensé aujourd'hui" color="#60a5fa" />
         <StatCard icon={nextExam ? <GraduationCap size={24} color="#f87171" /> : <BookOpen size={24} color="#9ca3af" />}
@@ -423,13 +437,13 @@ export default function Dashboard() {
                 <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0',
                   borderBottom: '1px solid var(--border)' }}>
                   <span style={{ display: 'inline-flex' }}>
-                    {t.status === 'Terminé' && t.lastCompletedAt === now
+                    {isHabitDoneToday(t)
                       ? <CheckCircle2 size={16} style={{ color: '#4ade80' }} />
                       : <Circle size={16} style={{ color: 'var(--muted)' }} />}
                   </span>
                   <span style={{ flex: 1, fontSize: 13,
-                    color: t.status === 'Terminé' && t.lastCompletedAt === now ? 'var(--muted)' : 'var(--text)',
-                    textDecoration: t.status === 'Terminé' && t.lastCompletedAt === now ? 'line-through' : 'none' }}>
+                    color: isHabitDoneToday(t) ? 'var(--muted)' : 'var(--text)',
+                    textDecoration: isHabitDoneToday(t) ? 'line-through' : 'none' }}>
                     {t.name}
                   </span>
                   {t.recurrenceTime && <span style={{ fontSize: 11, color: '#5B8DBF', display: 'flex', alignItems: 'center', gap: 3 }}><Clock size={11} /> {t.recurrenceTime}</span>}
