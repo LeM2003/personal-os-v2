@@ -10,11 +10,12 @@ import { taskToRow, rowToTask, folderToRow, rowToFolder, projectToRow, rowToProj
 const NOTIF_ICON = '/icons/icon-192.png'
 
 // Seed intelligent : dossiers pré-créés à la 1re ouverture (rénommables/supprimables).
-// IDs stables pour rester cohérents entre rechargements tant que non modifiés.
+// IDs stables (UUID, requis par la colonne `folders.id`) pour rester cohérents
+// entre rechargements tant que non modifiés.
 const DEFAULT_FOLDERS: Folder[] = [
-  { id: 'seed-ecole',    name: 'École',    color: '#38bdf8', emoji: '🎓', order: 0 },
-  { id: 'seed-business', name: 'Business', color: '#a78bfa', emoji: '💼', order: 1 },
-  { id: 'seed-perso',    name: 'Perso',    color: '#34d399', emoji: '🏠', order: 2 },
+  { id: '650a63cb-cc79-4ea9-b844-1e904c567d21', name: 'École',    color: '#38bdf8', emoji: '🎓', order: 0 },
+  { id: '828acba7-88e2-463a-b488-5d17c1f1996e', name: 'Business', color: '#a78bfa', emoji: '💼', order: 1 },
+  { id: 'fa70e880-d869-4640-baba-1cc12abb9cd3', name: 'Perso',    color: '#34d399', emoji: '🏠', order: 2 },
 ]
 
 interface TaskContextValue {
