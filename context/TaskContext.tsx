@@ -6,8 +6,7 @@ import { useLS } from '@/hooks/useLocalStorage'
 import { useSyncedCollection } from '@/hooks/useSyncedCollection'
 import { todayISO, nextOccurrenceDate, genId } from '@/utils/dates'
 import { taskToRow, rowToTask, folderToRow, rowToFolder, projectToRow, rowToProject } from '@/lib/supabase/mappers'
-
-const NOTIF_ICON = '/icons/icon-192.png'
+import { showNotif } from '@/utils/notifications'
 
 // Seed intelligent : dossiers pré-créés à la 1re ouverture (rénommables/supprimables).
 // IDs stables (UUID, requis par la colonne `folders.id`) pour rester cohérents
@@ -162,7 +161,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
     if (!pomo?.finished || bellRef.current) return
     bellRef.current = true
     if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-      new Notification('⏱ Temps écoulé !', { body: `${pomo.task.name} — bien joué !`, icon: NOTIF_ICON })
+      void showNotif('⏱ Temps écoulé !', `${pomo.task.name} — bien joué !`, 'pomo-done')
     }
   }, [pomo?.finished]) // eslint-disable-line
 

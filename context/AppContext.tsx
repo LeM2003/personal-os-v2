@@ -3,14 +3,12 @@
 import { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react'
 import type { UserProfile, StreakData, Task, Project, Expense, Exam, Homework } from '@/types'
 import { useLS } from '@/hooks/useLocalStorage'
-import { startNotificationLoop, stopNotificationLoop } from '@/utils/notifications'
+import { startNotificationLoop, stopNotificationLoop, showNotif } from '@/utils/notifications'
 
 import { TaskProvider, useTaskContext } from './TaskContext'
 import { FinanceProvider, useFinanceContext } from './FinanceContext'
 import { EducationProvider, useEducationContext } from './EducationContext'
 import { createClient } from '@/lib/supabase/client'
-
-const NOTIF_ICON = '/icons/icon-192.png'
 
 // Convertit une clé VAPID base64url (string) en Uint8Array (requis par pushManager.subscribe)
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
@@ -169,7 +167,7 @@ function AppCoreProvider({ children }: { children: React.ReactNode }) {
 
   const notify = useCallback((title: string, body: string) => {
     if (!notifEnabled || !notifSupported || Notification.permission !== 'granted') return
-    new Notification(title, { body, icon: NOTIF_ICON, badge: NOTIF_ICON })
+    void showNotif(title, body, 'app-notify')
   }, [notifEnabled, notifSupported])
 
   const enableNotifications = async () => {
@@ -177,7 +175,7 @@ function AppCoreProvider({ children }: { children: React.ReactNode }) {
     const perm = await Notification.requestPermission()
     if (perm === 'granted') {
       setNotifEnabled(true)
-      new Notification('Personal OS 🔔', { body: 'Notifications activées !', icon: NOTIF_ICON })
+      void showNotif('Personal OS 🔔', 'Notifications activées !', 'notif-enabled')
       // Abonne l'appareil au Web Push VAPID
       try {
         if ('serviceWorker' in navigator && 'PushManager' in window && process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) {

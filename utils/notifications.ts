@@ -38,7 +38,7 @@ function markNotified(key: string): void {
   } catch {}
 }
 
-async function showNotif(title: string, body: string, tag: string): Promise<void> {
+export async function showNotif(title: string, body: string, tag: string): Promise<void> {
   if (Notification.permission !== 'granted') return
   const opts = {
     body,
