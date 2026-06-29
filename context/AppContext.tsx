@@ -9,6 +9,7 @@ import { TaskProvider, useTaskContext } from './TaskContext'
 import { FinanceProvider, useFinanceContext } from './FinanceContext'
 import { EducationProvider, useEducationContext } from './EducationContext'
 import { createClient } from '@/lib/supabase/client'
+import { reportError } from '@/lib/reportError'
 
 // Convertit une clé VAPID base64url (string) en Uint8Array (requis par pushManager.subscribe)
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
@@ -99,7 +100,7 @@ function AppCoreProvider({ children }: { children: React.ReactNode }) {
         const supabase = createClient()
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) return
-        await supabase.from('profiles').upsert({
+        const { error } = await supabase.from('profiles').upsert({
           id: user.id,
           email: user.email ?? '',
           full_name: `${profile!.prenom}${profile!.nom ? ' ' + profile!.nom : ''}`.trim(),
@@ -109,7 +110,10 @@ function AppCoreProvider({ children }: { children: React.ReactNode }) {
           custom_modules: profile!.customTabs ?? [],
           onboarding_done: true,
         }, { onConflict: 'id' })
-      } catch { /* offline — localStorage persiste */ }
+        if (error) reportError('sync.profile', error)
+      } catch (err) {
+        reportError('sync.profile.exception', err)
+      }
     }
     syncProfile()
   }, [profile])

@@ -17,6 +17,11 @@ Sentry.init({
     'ResizeObserver loop limit exceeded',
     'Non-Error promise rejection captured',
     'top.GLOBALS',
+    // Pannes réseau attendues (hors-ligne) remontées par le moteur de sync —
+    // pas des bugs, juste l'utilisateur sans connexion.
+    'Failed to fetch',
+    'NetworkError',
+    'Load failed',
   ],
 
   integrations: [

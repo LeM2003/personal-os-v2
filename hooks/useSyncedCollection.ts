@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react'
 import { useLS } from './useLocalStorage'
 import { createClient } from '@/lib/supabase/client'
+import { reportError } from '@/lib/reportError'
 
 /**
  * Moteur de synchronisation unifié localStorage ⇄ Supabase.
@@ -15,7 +16,8 @@ import { createClient } from '@/lib/supabase/client'
  *  - PUSH différentiel debounced : upsert des présents + DELETE de ce qui a disparu localement.
  *    → règle d'un coup : suppression propagée ET vidage complet possible.
  *  - Anti-race : aucun push n'est émis avant la fin de l'hydratation (ref `hydrated`).
- *  - Offline-safe : toute erreur réseau est silencieuse, localStorage reste la source locale.
+ *  - Offline-safe : toute erreur (réseau ou réponse Postgrest) est reportée via Sentry
+ *    (`reportError`) mais n'interrompt jamais le flux — localStorage reste la source locale.
  */
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -56,7 +58,8 @@ export function useSyncedCollection<T>(
         if (config.orderBy) {
           query = query.order(config.orderBy.column, { ascending: config.orderBy.ascending ?? true })
         }
-        const { data } = await query
+        const { data, error } = await query
+        if (error) { reportError('sync.pull', error, { table: config.table }); return }
         if (cancelled || !data) return
         const serverIds = new Set(data.map(r => r.id as string))
         remoteIds.current = serverIds
@@ -68,8 +71,8 @@ export function useSyncedCollection<T>(
         const serverItems = data.map(config.fromRow)
         const localOnly = itemsRef.current.filter(i => !serverIds.has(config.getId(i)))
         setItems([...serverItems, ...localOnly])
-      } catch {
-        /* offline — on garde localStorage */
+      } catch (err) {
+        reportError('sync.pull.exception', err, { table: config.table })
       } finally {
         if (!cancelled) hydrated.current = true
       }
@@ -103,20 +106,22 @@ export function useSyncedCollection<T>(
 
         // 1) upsert des éléments présents
         if (current.length > 0) {
-          await supabase.from(config.table)
+          const { error: upsertError } = await supabase.from(config.table)
             .upsert(current.map(i => config.toRow(i, user.id)), { onConflict: 'id' })
+          if (upsertError) { reportError('sync.push.upsert', upsertError, { table: config.table }); return }
         }
 
         // 2) DELETE différentiel : ce qui était en base mais n'existe plus localement
         const toDelete = [...remoteIds.current].filter(id => !currentIds.has(id))
         if (toDelete.length > 0) {
-          await supabase.from(config.table).delete().in('id', toDelete).eq('user_id', user.id)
+          const { error: deleteError } = await supabase.from(config.table).delete().in('id', toDelete).eq('user_id', user.id)
+          if (deleteError) { reportError('sync.push.delete', deleteError, { table: config.table }); return }
         }
 
         // 3) la base reflète maintenant l'état local
         remoteIds.current = currentIds
-      } catch {
-        /* offline — localStorage persiste, on resync au prochain changement */
+      } catch (err) {
+        reportError('sync.push.exception', err, { table: config.table })
       }
     }, config.debounceMs ?? 2500)
 
